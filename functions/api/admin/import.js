@@ -87,7 +87,7 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     ix = { code: 0, name: 1, campaign: 2, date: 3, amount: 4, phone: 5, link: 6, org: -1 };
     rows.unshift(header);
   }
-  const items = rows.map((r, i) => {
+  let items = rows.map((r, i) => {
     const g = k => ix[k] >= 0 && ix[k] < r.length ? String(r[ix[k]] ?? '').trim() : '';
     const raw = ix.amount >= 0 && ix.amount < r.length ? r[ix.amount] : '';
     const amt = typeof raw === 'number' ? { amount: raw, text: '' } : amountOf(g('amount'));
@@ -96,12 +96,22 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
   }).filter(x => x.name);
   // Hệ thống cũ có mã dùng chung cho nhiều người (VD: số quyết định "48QĐ/ĐTN"). Mã đầu giữ nguyên, các dòng sau thêm -2, -3…
   // theo thứ tự trong bảng, nên nhập lại nhiều lần vẫn ra cùng mã.
+  // Dòng lặp lại hoàn toàn (cùng mã, cùng họ tên, cùng SĐT) là nhập trùng ở bảng cũ: bỏ, không cấp giấy thứ hai.
+  const dupRows = [];
   if (!Array.isArray(b.items)) {
-    const count = {};
-    for (const x of items) if (x.code) { count[x.code] = (count[x.code] || 0) + 1; if (count[x.code] > 1) { x.sharedCode = x.code; x.code = x.code + '-' + count[x.code]; } }
+    const count = {}, seen = new Set();
+    items = items.filter(x => {
+      if (!x.code) return true;
+      const k = x.code + '|' + nameKey(x.name) + '|' + x.phone;
+      if (seen.has(k)) { dupRows.push(`Dòng ${x.row}: ${x.code} – ${x.name}`); return false; }
+      seen.add(k);
+      count[x.code] = (count[x.code] || 0) + 1;
+      if (count[x.code] > 1) { x.sharedCode = x.code; x.code = x.code + '-' + count[x.code]; }
+      return true;
+    });
   }
   const bad = items.filter(x => x.code && !validCode(x.code));
-  if (!commit) return json({ preview: items.slice(0, 50), items, total: items.length, shared: items.filter(x => x.sharedCode).map(x => `Dòng ${x.row}: ${x.sharedCode} → ${x.code}`), invalidCodes: bad.map(x => `Dòng ${x.row}: ${x.code}`).slice(0, 20) });
+  if (!commit) return json({ preview: items.slice(0, 50), items, total: items.length, duplicates: dupRows, shared: items.filter(x => x.sharedCode).map(x => `Dòng ${x.row}: ${x.sharedCode} → ${x.code}`), invalidCodes: bad.map(x => `Dòng ${x.row}: ${x.code}`).slice(0, 20) });
   if (items.length > 400) return json({ error: 'Mỗi lần ghi tối đa 400 dòng; trang quản trị tự chia nhỏ.' }, 400);
 
   // Nạp sẵn dự án và mã đã có để hạn chế số truy vấn.
