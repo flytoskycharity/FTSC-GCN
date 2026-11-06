@@ -126,7 +126,7 @@ export const certImagePath = c => `/api/cert-image?code=${encodeURIComponent(c.c
 
 // Lịch sử điều chỉnh thông tin, dạng dễ đọc: [{at, by, reason, changes: [{label, from, to}]}].
 // Mỗi mục lưu thông tin CŨ; thông tin MỚI là bản cũ của lần sửa kế tiếp hoặc thông tin hiện tại.
-const HIST_LABELS = { name: 'Họ tên', org: 'Chức vụ, đơn vị', phone: 'Số điện thoại', amount: 'Số tiền', amount_text: 'Nội dung ghi nhận', issued_date: 'Ngày cấp', campaign_name: 'Dự án, chương trình' };
+const HIST_LABELS = { name: 'Họ tên', org: 'Chức vụ, đơn vị', phone: 'Số điện thoại', amount: 'Số tiền', amount_text: 'Nội dung ghi nhận', units: 'Số quy đổi', issued_date: 'Ngày cấp', campaign_name: 'Dự án, chương trình' };
 export function historyOf(c) {
   let list = [];
   try { list = JSON.parse(c?.history || '[]'); } catch { list = []; }

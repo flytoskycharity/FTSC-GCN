@@ -54,7 +54,10 @@ export const vnNow = () => new Date(Date.now() + 7 * 36e5);
 export const vnToday = () => vnNow().toISOString().slice(0, 10);
 
 // Nhận ngày ở nhiều dạng (dd/mm/yyyy, yyyy-mm-dd, ddmmyyyy, số serial của Google Sheets) và trả về yyyy-mm-dd.
-export function toIsoDate(v) {
+// Chỉ nhận ngày có thật (VD: không có tháng 13, ngày 31/02).
+const realDate = iso => { const d = new Date(iso + 'T00:00:00Z'); return iso && !isNaN(d) && d.toISOString().slice(0, 10) === iso ? iso : ''; };
+export function toIsoDate(v) { return realDate(toIsoRaw(v)); }
+function toIsoRaw(v) {
   if (v === null || v === undefined || v === '') return '';
   if (typeof v === 'number' && v > 20000 && v < 80000) {
     return new Date(Date.UTC(1899, 11, 30) + v * 864e5).toISOString().slice(0, 10);
@@ -110,3 +113,13 @@ export const unitsOf = (amount, c) => c && Number(c.unit_price) > 0 && c.unit_na
 export const unitNote = c => c && Number(c.unit_price) > 0 && c.unit_name ? `${Number(c.unit_price).toLocaleString('vi-VN')}đ = 1 ${c.unit_name}` : '';
 
 export const clip = (v, n) => String(v ?? '').trim().slice(0, n);
+// Số quy đổi nhập tay (VD: "20" hoặc "20 cây"): chỉ ghi số thì thêm tên đơn vị của dự án. Trống → undefined (tự tính theo số tiền).
+export function unitsInput(v, c) {
+  const t = String(v ?? '').trim();
+  if (!t) return undefined;
+  if (/^[\d.,\s]+$/.test(t)) {
+    const n = Number(t.replace(/[.,\s]/g, '')) || 0;
+    return n ? `${n.toLocaleString('vi-VN')}${c?.unit_name ? ' ' + c.unit_name : ''}` : '';
+  }
+  return t.slice(0, 80);
+}

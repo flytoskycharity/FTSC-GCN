@@ -1,6 +1,6 @@
 import { adminApi, log, can } from '../../_lib/auth.js';
 import { loadSettings } from '../../_lib/db.js';
-import { json, readJson, clip, nameKey, normPhone, toIsoDate, vnToday, amountOf } from '../../_lib/util.js';
+import { json, readJson, clip, nameKey, normPhone, toIsoDate, vnToday, amountOf, unitsInput, unitsOf } from '../../_lib/util.js';
 import { issueCertificate, verifyPath, deleteCertificate } from '../../_lib/certs.js';
 import { campaignById } from '../../_lib/campaigns.js';
 
@@ -41,10 +41,11 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
       const amt = typeof r.amount === 'number' ? { amount: r.amount, text: '' } : amountOf(r.amount);
       try {
         if (!clip(r.name, 160)) throw new Error('thiếu họ tên');
+        if (clip(r.issued_date, 40) && !toIsoDate(r.issued_date)) throw new Error(`ngày cấp "${clip(r.issued_date, 40)}" không đúng (ghi dạng ngày/tháng/năm, VD 06/11/2026)`);
         const cert = await issueCertificate(env, settings, {
           campaign: c, campaign_name: r.campaign_name, name: r.name, phone: r.phone, org: r.org,
           amount: amt.amount, amount_text: r.amount_text || amt.text, issued_date: r.issued_date || vnToday(),
-          template_id: r.template_id ?? b.template_id ?? 'auto', code: r.code, source: 'manual', file_url: r.file_url, note: r.note, created_by: me.username,
+          template_id: r.template_id ?? b.template_id ?? 'auto', code: r.code, source: 'manual', units: unitsInput(r.units, c), file_url: r.file_url, note: r.note, created_by: me.username,
         });
         out.push({ id: cert.id, code: cert.code, url: verifyPath(cert) });
       } catch (e) { errors.push(`Dòng ${i + 1}: ${e.message}`); }
@@ -65,14 +66,17 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
       file_url: /^https:\/\//.test(String(r.file_url || '')) ? clip(r.file_url, 500) : (r.file_url === '' ? '' : cur.file_url),
       note: clip(r.note ?? cur.note, 500),
     };
+    // Số quy đổi: nhập tay thì giữ, để trống thì tự tính lại theo số tiền và đơn giá của dự án.
+    const camp = c || (next.campaign_id ? await campaignById(env, next.campaign_id) : null);
+    next.units = r.units === undefined ? cur.units : (unitsInput(r.units, camp) ?? unitsOf(next.amount, camp));
     if (!next.name) return json({ error: 'Họ tên không được để trống.' }, 400);
-    const keys = ['name', 'org', 'phone', 'amount', 'amount_text', 'issued_date', 'campaign_name'];
+    const keys = ['name', 'org', 'phone', 'amount', 'amount_text', 'units', 'issued_date', 'campaign_name'];
     const old = Object.fromEntries(keys.map(k => [k, cur[k]]));
     const changed = keys.some(k => String(old[k] ?? '') !== String(next[k] ?? ''));
     const hist = JSON.parse(cur.history || '[]');
     if (changed) hist.push({ at: vnToday(), by: me.username, old, reason: clip(b.reason, 300) });
-    await env.DB.prepare(`UPDATE certificates SET name=?,name_key=?,org=?,phone=?,amount=?,amount_text=?,issued_date=?,campaign_id=?,campaign_name=?,template_id=?,file_url=?,note=?,history=?,img_ok=0,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-      .bind(next.name, nameKey(next.name), next.org, next.phone, next.amount, next.amount_text, next.issued_date, next.campaign_id, next.campaign_name, next.template_id, next.file_url, next.note, JSON.stringify(hist), id).run();
+    await env.DB.prepare(`UPDATE certificates SET name=?,name_key=?,org=?,phone=?,amount=?,amount_text=?,units=?,issued_date=?,campaign_id=?,campaign_name=?,template_id=?,file_url=?,note=?,history=?,img_ok=0,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+      .bind(next.name, nameKey(next.name), next.org, next.phone, next.amount, next.amount_text, next.units, next.issued_date, next.campaign_id, next.campaign_name, next.template_id, next.file_url, next.note, JSON.stringify(hist), id).run();
     await log(env, me, 'sửa giấy ' + cur.code);
     return json({ ok: true });
   }

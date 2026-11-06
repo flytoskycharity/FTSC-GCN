@@ -326,19 +326,53 @@
   }
   async function bulkForm(campId) {
     tplMeta = tplMeta || await api('/api/admin/templates');
-    const m = modal.open(`<h2>Cấp hàng loạt</h2><div class="hint"><p>Dán từ Excel/Google Sheets, mỗi dòng một người, các cột theo thứ tự:</p><p><code>Họ tên | Số điện thoại | Số tiền hoặc nội dung ghi nhận | Chức vụ, đơn vị</code></p><p>Có thể ngăn cách bằng Tab (dán từ bảng tính) hoặc dấu |. Tối đa 500 dòng mỗi lần.</p></div><form id="bform">${field('campaign_id', 'Dự án, chương trình', campId || '0', { options: campOptions(false) })}${field('template_id', 'Mẫu giấy', 'auto', { options: tplOptions(campId) })}${field('issued_date', 'Ngày cấp', new Date(Date.now() + 7 * 36e5).toISOString().slice(0, 10), { type: 'date' })}${field('rows', 'Danh sách', '', { type: 'textarea', rows: 10, required: true })}<p class="err" hidden></p><div class="modal-acts"><button class="btn">Cấp giấy</button></div></form>`, true);
-    $('#bform', m).addEventListener('submit', async e => {
+    if (!campaigns.length) await loadCampaigns();
+    const today = new Date(Date.now() + 7 * 36e5).toISOString().slice(0, 10);
+    const COLS = ['Họ tên', 'Số điện thoại', 'Số tiền hoặc nội dung ghi nhận', 'Chức vụ, đơn vị', 'Ngày cấp', 'Số quy đổi'];
+    const m = modal.open(`<h2>Cấp hàng loạt</h2><div class="hint"><p>Dán từ Excel/Google Sheets, mỗi dòng một người, các cột theo thứ tự:</p><p><code>${COLS.join(' | ')}</code></p><p>Chỉ <b>Họ tên</b> là bắt buộc. <b>Ngày cấp</b> ghi dạng 06/11/2026; để trống thì lấy ngày mặc định bên dưới. <b>Số quy đổi</b> (số cây, số sách…) chỉ cần ghi số; để trống thì tự tính theo đơn giá của dự án. Ngăn cách bằng Tab (dán từ bảng tính) hoặc dấu |. Tối đa 500 dòng mỗi lần.</p></div><form id="bform">${field('campaign_id', 'Dự án, chương trình', campId || '0', { options: campOptions(false) })}<p class="sub" id="unitHint"></p>${field('template_id', 'Mẫu giấy', 'auto', { options: tplOptions(campId) })}${field('issued_date', 'Ngày cấp mặc định (cho dòng không ghi ngày)', today, { type: 'date' })}${check('header', 'Dòng đầu là tiêu đề cột (bỏ qua)', false)}${field('rows', 'Danh sách', '', { type: 'textarea', rows: 8, required: true, ph: 'Nguyễn Văn An\t0935939446\t500000\tGiám đốc Công ty ABC\t06/11/2026\t10' })}<div id="bprev"></div><p class="err" hidden></p><div class="modal-acts"><button class="btn" id="bgo">Cấp giấy</button></div></form>`, true);
+    const f = $('#bform', m);
+    const real = d => { const t = new Date(d + 'T00:00:00Z'); return !isNaN(t) && t.toISOString().slice(0, 10) === d ? d : ''; };
+    const iso = t => { if (!t) return ''; let x = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/); if (x) return real(`${x[1]}-${x[2].padStart(2, '0')}-${x[3].padStart(2, '0')}`); x = t.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/); return x ? real(`${x[3]}-${x[2].padStart(2, '0')}-${x[1].padStart(2, '0')}`) : ''; };
+    const money = t => /^[\d.,\s]+(đ|vnđ|vnd)?$/i.test(t) ? Number(t.replace(/\D/g, '')) || 0 : 0;
+    const parse = () => {
+      const v = formData(f), camp = campaigns.find(c => String(c.id) === String(v.campaign_id));
+      const price = Number(camp?.unit_price) || 0, unit = camp?.unit_name || '';
+      $('#unitHint', m).textContent = price && unit ? `Dự án quy đổi ${price.toLocaleString('vi-VN')}đ = 1 ${unit}: cột Số quy đổi để trống thì tự tính.` : '';
+      let lines = v.rows.split(/\r?\n/).filter(l => l.trim());
+      if (f.elements.header.checked) lines = lines.slice(1);
+      return lines.map((l, i) => {
+        const r = l.split(/\t|\|/).map(s => s.trim());
+        const rec = { name: r[0] || '', phone: r[1] || '', amount: r[2] || '', org: r[3] || '', issued_date: r[4] || v.issued_date, units: r[5] || '' };
+        const amt = money(rec.amount);
+        const units = rec.units ? (/^[\d.,\s]+$/.test(rec.units) ? `${Number(rec.units.replace(/\D/g, '')).toLocaleString('vi-VN')} ${unit}`.trim() : rec.units) : (price && amt >= price ? `${Math.floor(amt / price).toLocaleString('vi-VN')} ${unit} (tự tính)` : '');
+        const errs = [];
+        if (!rec.name) errs.push('thiếu họ tên');
+        if (r[4] && !iso(r[4])) errs.push(`ngày "${r[4]}" chưa đúng`);
+        return { i: i + 1, rec, amt, units, date: iso(rec.issued_date), errs };
+      });
+    };
+    const preview = () => {
+      const rows = parse(), bad = rows.filter(r => r.errs.length);
+      $('#bprev', m).innerHTML = rows.length ? `<p class="sub"><b>${rows.length}</b> dòng${bad.length ? ` · <span class="danger-link">${bad.length} dòng cần sửa</span>` : ''} · xem trước ${Math.min(rows.length, 100)} dòng đầu:</p><div class="tbl" style="max-height:260px;overflow:auto"><table><thead><tr><th>#</th><th>Họ tên</th><th>Chức vụ, đơn vị</th><th>SĐT</th><th>Ghi nhận</th><th>Quy đổi</th><th>Ngày cấp</th></tr></thead><tbody>${rows.slice(0, 100).map(r => `<tr${r.errs.length ? ' style="background:#fdecea"' : ''}><td>${r.i}</td><td><b>${esc(r.rec.name)}</b>${r.errs.length ? `<span class="sub danger-link">${esc(r.errs.join(', '))}</span>` : ''}</td><td>${esc(r.rec.org)}</td><td>${esc(r.rec.phone)}</td><td>${r.amt ? vnd(r.amt) : esc(r.rec.amount || '—')}</td><td>${esc(r.units || '—')}</td><td>${r.date ? dmy(r.date) : '—'}</td></tr>`).join('')}</tbody></table></div>` : '';
+      return rows;
+    };
+    f.addEventListener('input', preview); f.addEventListener('change', preview);
+    f.addEventListener('submit', async e => {
       e.preventDefault();
-      const v = formData(e.target);
-      const records = v.rows.split(/\r?\n/).map(l => l.split(/\t|\|/).map(s => s.trim())).filter(r => r[0]).map(r => ({ name: r[0], phone: r[1] || '', amount: r[2] || '', org: r[3] || '', issued_date: v.issued_date }));
-      if (!confirm(`Cấp ${records.length} giấy chứng nhận?`)) return;
+      const v = formData(f), rows = preview(), bad = rows.filter(r => r.errs.length);
+      if (!rows.length) return;
+      if (bad.length) { const er = $('.err', m); er.textContent = `Còn ${bad.length} dòng cần sửa (tô đỏ trong bảng xem trước).`; er.hidden = false; return; }
+      if (rows.length > 500) { const er = $('.err', m); er.textContent = 'Tối đa 500 dòng mỗi lần.'; er.hidden = false; return; }
+      if (!confirm(`Cấp ${rows.length} giấy chứng nhận?`)) return;
+      const records = rows.map(r => ({ ...r.rec, issued_date: r.date || v.issued_date }));
       try {
         const d = await api('/api/admin/certificates', { action: 'bulk', campaign: v.campaign_id, template_id: v.template_id, records });
-        $('.modal-body').innerHTML = `<h2>Đã cấp ${d.created.length} giấy</h2>${d.errors.length ? `<p class="err">${d.errors.map(esc).join('<br>')}</p>` : ''}<div class="tbl"><table><tbody>${d.created.map((c, i) => `<tr><td>${esc(records[i]?.name || '')}</td><td><code>${esc(c.code)}</code></td><td>${esc(location.origin + c.url)}</td></tr>`).join('')}</tbody></table></div><div class="modal-acts"><button class="btn" id="cpy">Chép danh sách</button></div>`;
+        $('.modal-body').innerHTML = `<h2>Đã cấp ${d.created.length} giấy</h2>${d.errors.length ? `<p class="err">${d.errors.map(esc).join('<br>')}</p>` : ''}<div class="tbl"><table><tbody>${d.created.map(c => `<tr><td><code>${esc(c.code)}</code></td><td>${esc(location.origin + c.url)}</td></tr>`).join('')}</tbody></table></div><div class="modal-acts"><button class="btn" id="cpy">Chép danh sách</button></div>`;
         $('#cpy').onclick = () => navigator.clipboard.writeText(d.created.map(c => `${c.code}\t${location.origin + c.url}`).join('\n')).then(() => toast('Đã chép'));
         loadCerts();
       } catch (x) { const er = $('.err', m); er.textContent = x.message; er.hidden = false; }
     });
+    preview();
   }
   // Tệp giấy đã cấp ở nơi khác: chỉ nhận bản scan có chữ ký tay, hoặc PDF có chữ ký số (kiểm tra ngay khi tải).
   const KINDS = [['giay-khen', 'Giấy khen'], ['giay-chung-nhan', 'Giấy chứng nhận'], ['khac', 'Khác']];
@@ -372,7 +406,7 @@
   async function editCert(c) {
     tplMeta = tplMeta || await api('/api/admin/templates');
     const hist = JSON.parse(c.history || '[]');
-    const m = modal.open(`<h2>Sửa giấy <code>${esc(c.code)}</code></h2><p class="hint">Mã giấy và mã xác thực giữ nguyên. Mỗi lần sửa thông tin được lưu vào lịch sử; trang xác thực ghi rõ số lần điều chỉnh.</p><form id="eform">${field('campaign_id', 'Dự án, chương trình', c.campaign_id, { options: campOptions(false) })}${field('campaign_name', 'Tên dự án in trên giấy', c.campaign_name)}${field('name', 'Họ và tên *', c.name, { required: true })}<div class="fg">${field('phone', 'Số điện thoại', c.phone)}${field('org', 'Chức vụ, đơn vị', c.org)}</div><div class="fg">${field('amount', 'Số tiền (VNĐ)', c.amount ?? '')}${field('amount_text', 'Hoặc nội dung ghi nhận', c.amount_text)}</div><div class="fg">${field('issued_date', 'Ngày cấp', c.issued_date, { type: 'date' })}${field('template_id', 'Mẫu giấy', c.template_id, { options: tplOptions(c.campaign_id).filter(o => o[0] !== 'auto') })}</div>${field('file_url', 'Đường dẫn bản gốc', c.file_url)}${field('note', 'Ghi chú nội bộ', c.note)}${field('reason', 'Lý do điều chỉnh', '', { ph: 'VD: Sai chính tả họ tên theo yêu cầu người nhận' })}${docSection(c)}${hist.length ? `<details class="sect"><summary>Lịch sử điều chỉnh (${hist.length})</summary>${hist.map(h => `<p class="sub">${dmy(h.at)} · ${esc(h.by)}: trước đó “${esc(h.old?.name)}”, ${esc(h.old?.amount ?? h.old?.amount_text ?? '')}${h.reason ? ' — ' + esc(h.reason) : ''}</p>`).join('')}</details>` : ''}<p class="err" hidden></p><div class="modal-acts">${isSuper() ? '<button type="button" class="btn danger" id="delG">Xóa hẳn</button>' : ''}<a class="btn ghost" href="${esc(c.url)}" target="_blank">Xem giấy</a><button class="btn">Lưu</button></div></form>`);
+    const m = modal.open(`<h2>Sửa giấy <code>${esc(c.code)}</code></h2><p class="hint">Mã giấy và mã xác thực giữ nguyên. Mỗi lần sửa thông tin được lưu vào lịch sử; trang xác thực ghi rõ số lần điều chỉnh.</p><form id="eform">${field('campaign_id', 'Dự án, chương trình', c.campaign_id, { options: campOptions(false) })}${field('campaign_name', 'Tên dự án in trên giấy', c.campaign_name)}${field('name', 'Họ và tên *', c.name, { required: true })}<div class="fg">${field('phone', 'Số điện thoại', c.phone)}${field('org', 'Chức vụ, đơn vị', c.org)}</div><div class="fg">${field('amount', 'Số tiền (VNĐ)', c.amount ?? '')}${field('amount_text', 'Hoặc nội dung ghi nhận', c.amount_text)}</div>${field('units', 'Số quy đổi (VD: 20 cây)', c.units || '', { help: 'Để trống thì tự tính theo số tiền và đơn giá quy đổi của dự án.' })}<div class="fg">${field('issued_date', 'Ngày cấp', c.issued_date, { type: 'date' })}${field('template_id', 'Mẫu giấy', c.template_id, { options: tplOptions(c.campaign_id).filter(o => o[0] !== 'auto') })}</div>${field('file_url', 'Đường dẫn bản gốc', c.file_url)}${field('note', 'Ghi chú nội bộ', c.note)}${field('reason', 'Lý do điều chỉnh', '', { ph: 'VD: Sai chính tả họ tên theo yêu cầu người nhận' })}${docSection(c)}${hist.length ? `<details class="sect"><summary>Lịch sử điều chỉnh (${hist.length})</summary>${hist.map(h => `<p class="sub">${dmy(h.at)} · ${esc(h.by)}: trước đó “${esc(h.old?.name)}”, ${esc(h.old?.amount ?? h.old?.amount_text ?? '')}${h.reason ? ' — ' + esc(h.reason) : ''}</p>`).join('')}</details>` : ''}<p class="err" hidden></p><div class="modal-acts">${isSuper() ? '<button type="button" class="btn danger" id="delG">Xóa hẳn</button>' : ''}<a class="btn ghost" href="${esc(c.url)}" target="_blank">Xem giấy</a><button class="btn">Lưu</button></div></form>`);
     bindDoc(m, c);
     $('#eform', m).addEventListener('submit', async e => {
       e.preventDefault();
