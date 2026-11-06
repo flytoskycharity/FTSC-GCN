@@ -313,3 +313,21 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;back
 .fix .fl>span{display:block;font-size:.84em;font-weight:700;margin-bottom:6px}
 .cv-img img{display:block;width:100%;height:auto;-webkit-user-drag:none;user-select:none}
 @media (max-width:640px){.fix .f2{grid-template-columns:1fr}}
+/* Điện thoại: logo + tiêu đề co lại để đầu trang không tràn ngang */
+@media (max-width:640px){
+ .wrap{width:calc(100% - 28px)}
+ .head-in{gap:8px}
+ .logo{flex:1 1 auto;min-width:0;gap:8px}
+ .logo img{height:34px}
+ .logo-t{min-width:0;padding-left:8px}
+ .logo-t b{font-size:.8em;white-space:normal;line-height:1.2}
+ .head-actions{flex:none;gap:6px}
+ .burger{width:40px;height:40px}
+ .hero h1{font-size:clamp(1.55em,7vw,2.1em);line-height:1.18}
+ .sec{padding-block:44px}
+ .btns{flex-wrap:wrap}.btns .btn{flex:1 1 auto;justify-content:center}
+ .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+ .lk-act{display:flex;flex-wrap:wrap;gap:8px}.lk-act .btn{flex:1 1 auto;justify-content:center}
+ .cv-btns .btn{flex:1 1 40%}
+}
+@media (max-width:360px){.logo-t{display:none}}

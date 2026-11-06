@@ -3,7 +3,17 @@
   const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const vnd = n => n === null || n === undefined || n === '' ? '' : Number(n).toLocaleString('vi-VN') + 'đ';
-  const dmy = v => { const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/); return m ? (m[4] ? `${m[4]}:${m[5]} ` : '') + `${m[3]}/${m[2]}/${m[1]}` : String(v || ''); };
+  // Giờ hệ thống tự ghi (CURRENT_TIMESTAMP của D1, dạng "2026-11-06 06:22:10", hoặc có đuôi Z) là giờ quốc tế UTC:
+  // đổi sang giờ Việt Nam (UTC+7). Giờ admin tự nhập (dạng "2026-11-06T20:00") đã là giờ Việt Nam, giữ nguyên.
+  const dmy = v => {
+    let t = String(v || '');
+    if (/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?|T\d{2}:\d{2}(:\d{2}(\.\d+)?)?Z)$/.test(t)) {
+      const d = new Date(t.replace(' ', 'T').replace(/Z?$/, 'Z'));
+      if (!isNaN(d)) t = new Date(d.getTime() + 7 * 36e5).toISOString().slice(0, 16);
+    }
+    const m = t.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+    return m ? (m[4] ? `${m[4]}:${m[5]} ` : '') + `${m[3]}/${m[2]}/${m[1]}` : t;
+  };
   const app = $('#app');
   const SHEET = 'https://docs.google.com/spreadsheets/d/1GaA2ojIUYSDXo_469Wsan34hv36iRPNvJ8uvIPJ4fPU/edit';
   let me = null, campaigns = [], tplMeta = null;
@@ -127,6 +137,13 @@
     app.innerHTML = `<div class="shell"><aside class="side"><a class="side-brand" href="/" target="_blank"><img src="/brand/fts-logo-pair.png" alt=""><b>Cổng tra cứu Giấy chứng nhận</b></a><nav>${TABS.filter(t => !t[3] || isSuper()).map(t => `<a href="#${t[0]}" data-tab="${t[0]}">${esc(t[1])}</a>`).join('')}</nav><div class="side-foot"><p id="qState" class="qstate" hidden></p><p><b>${esc(me.name || me.username)}</b><br>${esc({ super: 'Quản trị cao nhất', staff: 'Cán bộ cấp GCN & dự án', viewer: 'Chỉ xem' }[me.role] || me.role)}</p><button type="button" id="chg">Đổi mật khẩu</button><button type="button" id="out">Đăng xuất</button></div></aside><main class="main" id="main"></main></div>`;
     $('#chg').onclick = () => changeView(false);
     $('#out').onclick = async () => { await fetch('/api/logout', { method: 'POST' }); me = null; boot(); };
+    // Trên điện thoại bảng hiển thị thành thẻ: gắn tên cột vào từng ô.
+    const label = root => root.querySelectorAll('table').forEach(t => {
+      const heads = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim());
+      if (!heads.length) return;
+      t.querySelectorAll('tbody tr').forEach(tr => [...tr.children].forEach((td, i) => { if (!td.hasAttribute('data-label') && !td.hasAttribute('colspan')) td.setAttribute('data-label', heads[i] || ''); }));
+    });
+    new MutationObserver(() => label(document)).observe(document.body, { childList: true, subtree: true });
     window.onhashchange = route;
     route();
     kickQueue();
@@ -137,6 +154,7 @@
     const t = TABS.find(x => x[0] === tab && (!x[3] || isSuper())) || TABS[0];
     $$('.side nav a').forEach(a => a.classList.toggle('on', a.dataset.tab === t[0]));
     document.body.classList.remove('nav-open');
+    try { modal.close(); } catch { /* chưa có khung nào */ }
     const main = $('#main');
     main.innerHTML = '<p class="empty">Đang tải…</p>';
     try { await t[2](main, arg ? decodeURIComponent(arg) : ''); } catch (e) { main.innerHTML = `<div class="card"><p class="err">${esc(e.message)}</p></div>`; }

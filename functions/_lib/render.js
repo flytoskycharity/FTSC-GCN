@@ -5,7 +5,7 @@ import { qrSvg } from './qr.js';
 import { tracked } from './news.js';
 import { docKindLabel, docUrl, DOC_TYPES, NEAC_URL, parseSig } from './docs.js';
 
-const V = '4';
+const V = '5';
 const ICON = {
   search: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   shield: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6l-8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>',

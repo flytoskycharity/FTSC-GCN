@@ -107,3 +107,42 @@ td .sub{display:block;font-size:.84em;opacity:.7}
 }
 .qstate{background:rgba(255,255,255,.1);border-radius:8px;padding:6px 8px;color:#dbe6ff;font-size:.95em}
 .danger-link{color:#b3261e!important}
+/* ---------- Điện thoại ---------- */
+@media (max-width:760px){
+ body{font-size:15px}
+ .main{padding:12px 12px 80px}
+ .top{gap:10px;margin-bottom:14px;position:relative}
+ .top h1{font-size:1.45em;margin:6px 0 0}
+ .top>div:first-child{width:100%}
+ .top .row{width:100%}.top .row .btn{flex:1 1 auto;justify-content:center}
+ .burger{position:sticky;top:8px;z-index:20;box-shadow:0 6px 18px -10px rgba(3,21,82,.5)}
+ .card{padding:14px;border-radius:14px}
+ .stats{grid-template-columns:1fr 1fr;gap:10px}.stat{padding:12px}.stat b{font-size:22px}
+ .filters{gap:8px}
+ .filters>*{flex:1 1 auto}
+ .filters input,.filters select,.filters input[type=search]{min-width:0;width:100%;flex:1 1 100%}
+ .filters form,.filters .row{width:100%;margin-left:0!important}
+ .filters .btn.sm{flex:1 1 auto;text-align:center;justify-content:center}
+ /* Bảng → thẻ: mỗi dòng thành một thẻ, mỗi ô ghi kèm tên cột */
+ .tbl{overflow:visible}
+ .tbl table,.tbl tbody,.tbl tr,.tbl td{display:block;width:100%}
+ .tbl thead{display:none}
+ .tbl tr{background:#f7f9fe;border:1px solid var(--line);border-radius:12px;padding:6px 12px;margin-bottom:10px}
+ .tbl td{background:none;border:0;padding:6px 0 6px 100px;position:relative;min-height:28px;word-break:break-word}
+ .tbl td::before{content:attr(data-label);position:absolute;left:0;top:8px;width:92px;font-size:.7em;font-weight:800;text-transform:uppercase;letter-spacing:.03em;opacity:.55;line-height:1.25}
+ .tbl td:not([data-label]),.tbl td[data-label=""],.tbl td.empty{padding-left:0}
+ .tbl td:not([data-label])::before,.tbl td[data-label=""]::before{display:none}
+ .tbl td.empty{text-align:center}
+ .tbl td .row{gap:6px}
+ .tbl td.acts{white-space:normal}
+ .tbl td .btn{margin:2px 4px 2px 0}
+ .pager{flex-wrap:wrap;gap:8px}
+ /* Biểu mẫu toàn màn hình, nút luôn ở đáy */
+ .modal{padding:0;place-items:stretch}
+ .modal-box,.modal-box.wide{width:100%;min-height:100%;border-radius:0;padding:18px 14px 0}
+ .modal-acts{position:sticky;bottom:0;background:#fff;margin:16px -14px 0;padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);flex-wrap:wrap}
+ .modal-acts .btn{flex:1 1 auto;justify-content:center}
+ .fg{grid-template-columns:1fr}
+ input,select,textarea{font-size:16px!important}
+ .ed .stage{touch-action:none}
+}
