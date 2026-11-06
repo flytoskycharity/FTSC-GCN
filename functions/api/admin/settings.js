@@ -21,6 +21,8 @@ export const onRequestPost = adminApi('super', async ({ request, env, me }) => {
   const b = await readJson(request) || {};
   const next = shape(b.settings || {}, defaults);
   if (next.site.url && !/^https:\/\//.test(next.site.url)) return json({ error: 'Địa chỉ website phải bắt đầu bằng https://' }, 400);
+  for (const u of [next.site.aboutUrl, next.news.rss, next.news.site]) if (u && !/^https:\/\//.test(u)) return json({ error: 'Các đường dẫn phải bắt đầu bằng https://' }, 400);
+  next.news.count = Math.min(12, Math.max(1, Number(next.news.count) || 6));
   for (const k of Object.keys(next.sources)) if (next.sources[k].url && !/^https:\/\//.test(next.sources[k].url)) return json({ error: 'Địa chỉ hệ thống liên thông phải bắt đầu bằng https://' }, 400);
   for (const k of ['primary', 'primaryDark', 'accent', 'paper', 'tint', 'ink']) if (!/^#[0-9a-f]{6}$/i.test(next.theme[k])) next.theme[k] = defaults.theme[k];
   for (const k of ['signature', 'stamp']) if (next.cert[k] && !/^\/(media|brand)\/[a-z0-9/_.-]+$/i.test(next.cert[k])) next.cert[k] = '';

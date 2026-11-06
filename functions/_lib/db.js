@@ -37,7 +37,8 @@ export async function initializeDatabase(env) {
   for (const [t, c] of COLUMNS) { try { await env.DB.prepare(`ALTER TABLE ${t} ADD COLUMN ${c}`).run(); } catch { /* đã có */ } }
   // Quỹ chung các dự án: một "dự án" đặc biệt để nhận ủng hộ không chỉ định; sửa được trong admin.
   await env.DB.prepare(`INSERT OR IGNORE INTO campaigns(slug,title,kind,status,memo_prefix,summary,sort,accept_donations) VALUES(?,?,?,?,?,?,?,1)`)
-    .bind(FUND_SLUG, 'Quỹ chung các dự án Fly To Sky', 'money', 'open', 'FTSQUY', 'Ủng hộ không chỉ định dự án. Fly To Sky phân bổ cho các dự án, hoàn cảnh cần hỗ trợ nhất và công khai qua sao kê.', -1000).run();
+    .bind(FUND_SLUG, 'Quỹ chung các dự án Fly To Sky', 'money', 'open', 'DONGHANH', 'Ủng hộ không chỉ định dự án. Fly To Sky phân bổ cho các dự án, hoàn cảnh cần hỗ trợ nhất và công khai qua sao kê.', -1000).run();
+  await env.DB.prepare("UPDATE campaigns SET memo_prefix='DONGHANH' WHERE slug=? AND memo_prefix='FTSQUY'").bind(FUND_SLUG).run();
   ready = true;
   return env.DB;
 }
@@ -68,6 +69,7 @@ function upgrade(s, wasSaved) {
   if (!wasSaved) return s;
   // Bản đầu dùng màu cam của Khuyendoc: chuyển về màu xanh Fly To Sky nếu admin chưa đổi màu.
   if (String(s.theme.accent).toLowerCase() === '#f38234') s.theme = { ...defaults.theme, fontHeading: s.theme.fontHeading, fontBody: s.theme.fontBody };
+  for (const l of defaults.contact.links) if (/info\.flytoskycharity|benvung360/.test(l.href) && Array.isArray(s.contact.links) && !s.contact.links.some(x => x.href && x.href.replace(/\/$/, '') === l.href.replace(/\/$/, ''))) s.contact.links.splice(1, 0, { ...l });
   const hcm = defaults.contact.offices.find(o => o.label.includes('TP.HCM'));
   if (hcm && Array.isArray(s.contact.offices) && !s.contact.offices.some(o => /H[ồo] Ch[íi] Minh|TP\.?HCM/i.test(o.label + o.value))) s.contact.offices.push({ ...hcm });
   return s;

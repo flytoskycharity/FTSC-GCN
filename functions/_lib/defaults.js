@@ -9,6 +9,16 @@ export default {
     intro: 'Tra cứu Giấy chứng nhận ủng hộ, Giấy xác nhận tài trợ và Giấy chứng nhận tình nguyện viên do Hệ thống từ thiện Fly To Sky cấp. Nhập số điện thoại, họ tên hoặc mã giấy.',
     support: 'Cần hỗ trợ, vui lòng liên hệ Zalo 0375.136.800.',
     url: 'https://certificates.flytoskycharity.vn',
+    aboutUrl: 'https://info.flytoskycharity.vn/',
+  },
+  // Bản tin hiện ở trang chủ, đọc từ RSS của Bền vững 360°.
+  news: {
+    enabled: true,
+    title: 'Bản tin Bền vững 360°',
+    lead: 'Nghiên cứu, phân tích và giải pháp phát triển bền vững từ FTS Center for Sustainability Research & Advisory (FTS CSRA).',
+    rss: 'https://benvung360.com.vn/rss.xml',
+    site: 'https://benvung360.com.vn',
+    count: 6,
   },
   theme: {
     primary: '#05228b', primaryDark: '#031552', accent: '#1565d8',
@@ -21,6 +31,8 @@ export default {
     website: 'https://flytoskycharity.vn',
     links: [
       { label: 'Website Fly To Sky', href: 'https://flytoskycharity.vn' },
+      { label: 'Về Fly To Sky', href: 'https://info.flytoskycharity.vn/' },
+      { label: 'Bền vững 360°', href: 'https://benvung360.com.vn' },
       { label: 'Zalo Official Account', href: 'https://zalo.me/flytoskycharity' },
       { label: 'Fanpage Facebook', href: 'https://www.facebook.com/flytoskycharity' },
       { label: 'Cộng đồng Fly To Sky', href: 'https://www.facebook.com/groups/392919558235980' },
