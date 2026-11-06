@@ -187,7 +187,7 @@
   }
 
   // ---------- Mẫu Giấy chứng nhận ----------
-  const SAMPLE = { name: 'NGUYỄN VĂN AN', org: 'Giám đốc Công ty ABC', amount: '1.000.000 VNĐ', units: '20 cây', project: 'Tên dự án mẫu', phone: '093****446', code: 'FTS-2026-1234567', date: '06/11/2026', signer: 'Lê Văn Phúc' };
+  const SAMPLE = { name: 'NGUYỄN VĂN AN', org: 'Giám đốc Công ty ABC', amount: '1.000.000 VNĐ', units: '20', project: 'Tên dự án mẫu', phone: '093****446', code: 'FTS-2026-1234567', date: '06/11/2026', signer: 'Lê Văn Phúc' };
   let settingsCache = null;
   const getSettings = async () => settingsCache || (settingsCache = (await api('/api/admin/settings')).settings);
   const sampleQr = () => 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21"><rect width="21" height="21" fill="#fff"/><path d="M1 1h7v7H1zM13 1h7v7h-7zM1 13h7v7H1zM10 10h2v2h-2zM14 14h2v2h-2zM17 17h3v3h-3zM10 2h2v5h-2zM2 10h5v2H2z" fill="#000"/><path d="M3 3h3v3H3zM15 3h3v3h-3zM3 15h3v3H3z" fill="#fff"/></svg>');

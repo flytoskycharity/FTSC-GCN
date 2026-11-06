@@ -2,7 +2,7 @@ import { unitsOf, normCode, validCode, codePath, hmac, randomInt, nameKey, normP
 
 // Các ô thông tin đặt được lên mẫu. x, y tính theo % chiều rộng/cao; size theo % chiều rộng; w (ảnh) theo % chiều rộng.
 export const FIELD_KEYS = {
-  name: 'Họ tên', org: 'Chức vụ, đơn vị', amount: 'Số tiền / nội dung ghi nhận', units: 'Số lượng quy đổi (VD: 10 cây)', project: 'Dự án, chương trình',
+  name: 'Họ tên', org: 'Chức vụ, đơn vị', amount: 'Số tiền / nội dung ghi nhận', units: 'Số lượng quy đổi (chỉ số, VD: 10)', project: 'Dự án, chương trình',
   phone: 'Số điện thoại', code: 'Mã giấy chứng nhận', date: 'Ngày cấp', qr: 'Mã QR xác thực',
   signature: 'Chữ ký', stamp: 'Con dấu', signer: 'Người ký', text: 'Chữ tự nhập',
 };
@@ -106,10 +106,13 @@ export async function issueCertificate(env, settings, data) {
 export function certValues(settings, c) {
   const up = v => String(v || '').toLocaleUpperCase('vi');
   const amountLine = c.amount !== null && c.amount !== undefined && c.amount !== '' && Number(c.amount) > 0
-    ? vnd(c.amount) + (c.units ? ` (${c.units})` : '') : (c.amount_text || settings.cert.programText);
+    ? vnd(c.amount) : (c.amount_text || settings.cert.programText);
+  // Trên giấy chỉ in con số (VD: 10), chữ đơn vị đã có sẵn trên phôi; trang xác thực ghi đầy đủ "(10 cây)".
+  const unitNum = String(c.units || '').match(/^[\d.,]+/)?.[0] || '';
   return {
     name: up(c.name), org: c.org || '', amount: amountLine, project: c.campaign_name || '',
     phone: settings.cert.maskPhone === false ? (c.phone || '') : maskPhone(c.phone || ''),
-    code: c.code, date: fmtDate(c.issued_date), signer: settings.cert.signerName || '', units: c.units || '',
+    code: c.code, date: fmtDate(c.issued_date), signer: settings.cert.signerName || '', units: unitNum,
+    amountFull: amountLine + (c.units && amountLine !== (c.amount_text || settings.cert.programText) ? ` (${c.units})` : ''),
   };
 }
