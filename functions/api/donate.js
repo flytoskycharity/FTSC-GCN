@@ -1,7 +1,7 @@
 // Đăng ký ủng hộ (Quỹ chung hoặc dự án đang mở): tạo mã VietQR đúng cú pháp; theo dõi trạng thái để trả Giấy chứng nhận ngay khi tiền về.
 import { initializeDatabase, loadSettings } from '../_lib/db.js';
 import { limited, sameOrigin } from '../_lib/auth.js';
-import { json, readJson, normPhone, randomHex, money, clip } from '../_lib/util.js';
+import { json, readJson, normPhone, randomHex, money, clip, unitsOf } from '../_lib/util.js';
 import { campaignById, isOpen } from '../_lib/campaigns.js';
 import { vietQr, qrSvg } from '../_lib/qr.js';
 import { syncBank } from '../_lib/bank.js';
@@ -36,6 +36,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
   const email = cut(b.email, 160);
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'Email chưa đúng.' }, 400);
   if (amount < (Number(D.minAmount) || 1000) || amount > 100_000_000_000) return json({ error: `Số tiền tối thiểu ${(Number(D.minAmount) || 1000).toLocaleString('vi-VN')}đ.` }, 400);
+  const up = Number(c.unit_price) || 0;
+  if (c.unit_strict && up > 0 && amount % up) return json({ error: `Dự án nhận theo bội số ${up.toLocaleString('vi-VN')}đ (1 ${c.unit_name}). Vui lòng chọn số ${c.unit_name}.` }, 400);
   const biz = ['to-chuc', 'doanh-nghiep'].includes(type.id);
   const wants = b.wantsConfirm && amount >= (Number(D.confirmMin) || 0) ? 1 : 0;
   if (wants && biz && !cut(b.taxCode, 20)) return json({ error: 'Vui lòng nhập mã số thuế để được cấp Giấy xác nhận tài trợ.' }, 400);
@@ -44,7 +46,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     .bind(token, c.id, name, phone, cut(b.org, 200), email, amount, memo, type.id, cut(b.position, 160), cut(b.taxCode, 20), cut(b.address, 250), wants, cut(b.message, 1000)).run();
   const bank = s.bank;
   return json({
-    token, memo, amount, project: c.title, wantsConfirm: !!wants,
+    token, memo, amount, project: c.title, wantsConfirm: !!wants, units: unitsOf(amount, c),
     bank: { name: bank.name, account: bank.account, holder: bank.holder },
     qr: qrSvg(vietQr({ bin: bank.bin, account: bank.account, amount, memo }), { level: 'M', border: 3 }),
   });

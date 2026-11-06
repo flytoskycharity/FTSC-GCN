@@ -104,4 +104,9 @@ export const validCode = c => /^[\p{L}\p{N}][\p{L}\p{N} _.\/()&-]{0,79}$/u.test(
 // Đường dẫn xác thực: mã có thể chứa "/", mã hóa từng đoạn.
 export const codePath = c => String(c).split('/').map(encodeURIComponent).join('/');
 
+// Quy đổi số tiền thành số đơn vị của dự án (VD: 500.000đ ÷ 50.000đ = 10 cây).
+export const unitsOf = (amount, c) => c && Number(c.unit_price) > 0 && c.unit_name && Number(amount) >= Number(c.unit_price)
+  ? `${Math.floor(Number(amount) / Number(c.unit_price)).toLocaleString('vi-VN')} ${c.unit_name}` : '';
+export const unitNote = c => c && Number(c.unit_price) > 0 && c.unit_name ? `${Number(c.unit_price).toLocaleString('vi-VN')}đ = 1 ${c.unit_name}` : '';
+
 export const clip = (v, n) => String(v ?? '').trim().slice(0, n);

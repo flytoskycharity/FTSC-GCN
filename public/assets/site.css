@@ -156,6 +156,13 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;back
 .plan li{display:grid;grid-template-columns:200px 1fr;gap:12px;padding:10px 12px;border-left:3px solid rgba(5,34,139,.2);background:#f9fbff;border-radius:0 10px 10px 0}
 .plan li.done{border-color:#2e9e5b}.plan li.done b::after{content:" ✓";color:#2e9e5b}
 @media (max-width:640px){.plan li{grid-template-columns:1fr;gap:2px}}
+/* quy đổi đơn vị (VD: 50.000đ = 1 cây) */
+.unit-note{margin:0 0 10px;font-weight:700;color:var(--primary)}
+.qty{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.qty input{width:110px;text-align:center;font-weight:800;font-size:1.1em;padding:10px;border:1.5px solid rgba(5,34,139,.25);border-radius:10px}
+.qbtn{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--primary);color:var(--primary);font-size:1.3em;font-weight:800}
+.qbtn:hover{background:var(--primary);color:#fff}.qty-name{font-weight:700}
+.unit-conv{margin:6px 0 0;font-weight:700;color:var(--primary)}
 /* tệp giấy đã cấp, chữ ký số */
 .doc-view{min-height:auto}.doc-view iframe{display:block;width:100%;height:min(80vh,900px);border:0}.doc-view img{width:100%}
 .sigp{background:#fff;border-radius:var(--r);padding:20px 22px;margin-top:18px;border-top:5px solid #2e9e5b;box-shadow:0 18px 40px -30px rgba(3,21,82,.45)}

@@ -45,13 +45,15 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
   }
   const v = [slug, title, r.kind === 'program' ? 'program' : 'money', STATUS.includes(r.status) ? r.status : 'draft', dt(r.start_at), dt(r.end_at), memo,
     money(r.goal), Number(String(r.raised_offset ?? 0).replace(/[^\d-]/g, '')) || 0, clip(r.summary, 400), clip(r.description, 20000), mediaUrl(r.cover),
-    clip(r.cert_prefix, 10).toUpperCase().replace(/[^A-Z0-9]/g, ''), r.accept_donations === false || r.accept_donations === 0 ? 0 : 1, Number(r.sort) || 0, clip(r.benefits, 3000)];
+    clip(r.cert_prefix, 10).toUpperCase().replace(/[^A-Z0-9]/g, ''), r.accept_donations === false || r.accept_donations === 0 ? 0 : 1, Number(r.sort) || 0, clip(r.benefits, 3000),
+    money(r.unit_price), clip(r.unit_name, 30), r.unit_strict === true || r.unit_strict === 1 ? 1 : 0];
+  if (v[15] && !v[16]) return json({ error: 'Nhập tên đơn vị quy đổi (VD: cây, cuốn sách).' }, 400);
   if (id) {
-    await env.DB.prepare(`UPDATE campaigns SET slug=?,title=?,kind=?,status=?,start_at=?,end_at=?,memo_prefix=?,goal=?,raised_offset=?,summary=?,description=?,cover=?,cert_prefix=?,accept_donations=?,sort=?,benefits=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(...v, id).run();
+    await env.DB.prepare(`UPDATE campaigns SET slug=?,title=?,kind=?,status=?,start_at=?,end_at=?,memo_prefix=?,goal=?,raised_offset=?,summary=?,description=?,cover=?,cert_prefix=?,accept_donations=?,sort=?,benefits=?,unit_price=?,unit_name=?,unit_strict=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(...v, id).run();
     await log(env, me, 'sửa dự án ' + title);
     return json({ ok: true, id });
   }
-  const res = await env.DB.prepare(`INSERT INTO campaigns(slug,title,kind,status,start_at,end_at,memo_prefix,goal,raised_offset,summary,description,cover,cert_prefix,accept_donations,sort,benefits) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(...v).run();
+  const res = await env.DB.prepare(`INSERT INTO campaigns(slug,title,kind,status,start_at,end_at,memo_prefix,goal,raised_offset,summary,description,cover,cert_prefix,accept_donations,sort,benefits,unit_price,unit_name,unit_strict) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(...v).run();
   await log(env, me, 'tạo dự án ' + title);
   return json({ ok: true, id: res.meta.last_row_id });
 });

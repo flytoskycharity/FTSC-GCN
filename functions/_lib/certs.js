@@ -1,8 +1,8 @@
-import { normCode, validCode, codePath, hmac, randomInt, nameKey, normPhone, maskPhone, vnToday, fmtDate, vnd, toIsoDate } from './util.js';
+import { unitsOf, normCode, validCode, codePath, hmac, randomInt, nameKey, normPhone, maskPhone, vnToday, fmtDate, vnd, toIsoDate } from './util.js';
 
 // Các ô thông tin đặt được lên mẫu. x, y tính theo % chiều rộng/cao; size theo % chiều rộng; w (ảnh) theo % chiều rộng.
 export const FIELD_KEYS = {
-  name: 'Họ tên', org: 'Chức vụ, đơn vị', amount: 'Số tiền / nội dung ghi nhận', project: 'Dự án, chương trình',
+  name: 'Họ tên', org: 'Chức vụ, đơn vị', amount: 'Số tiền / nội dung ghi nhận', units: 'Số lượng quy đổi (VD: 10 cây)', project: 'Dự án, chương trình',
   phone: 'Số điện thoại', code: 'Mã giấy chứng nhận', date: 'Ngày cấp', qr: 'Mã QR xác thực',
   signature: 'Chữ ký', stamp: 'Con dấu', signer: 'Người ký', text: 'Chữ tự nhập',
 };
@@ -92,11 +92,12 @@ export async function issueCertificate(env, settings, data) {
     ? Number(data.template_id) : await pickTemplate(env, campaign?.id || 0, amount || 0);
   const name = String(data.name || '').trim().slice(0, 160) || settings.donate.anonymousName;
   const sig = await certSig(env, code);
-  const r = await env.DB.prepare(`INSERT INTO certificates(code,sig,campaign_id,campaign_name,name,name_key,phone,org,amount,amount_text,issued_date,template_id,source,file_url,donation_id,note,created_by)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
+  const units = data.units !== undefined ? String(data.units || '').slice(0, 80) : unitsOf(amount, campaign);
+  const r = await env.DB.prepare(`INSERT INTO certificates(code,sig,campaign_id,campaign_name,name,name_key,phone,org,amount,amount_text,issued_date,template_id,source,file_url,donation_id,note,created_by,units)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
     code, sig, campaign?.id || 0, String(data.campaign_name || campaign?.title || '').slice(0, 200), name, nameKey(name),
     normPhone(data.phone) || '', String(data.org || '').trim().slice(0, 200), amount, String(data.amount_text || '').slice(0, 200), issued,
-    templateId, data.source || 'manual', String(data.file_url || '').slice(0, 500), Number(data.donation_id) || 0, String(data.note || '').slice(0, 500), data.created_by || '',
+    templateId, data.source || 'manual', String(data.file_url || '').slice(0, 500), Number(data.donation_id) || 0, String(data.note || '').slice(0, 500), data.created_by || '', units,
   ).run();
   return await env.DB.prepare('SELECT * FROM certificates WHERE id=?').bind(r.meta.last_row_id).first();
 }
@@ -105,10 +106,10 @@ export async function issueCertificate(env, settings, data) {
 export function certValues(settings, c) {
   const up = v => String(v || '').toLocaleUpperCase('vi');
   const amountLine = c.amount !== null && c.amount !== undefined && c.amount !== '' && Number(c.amount) > 0
-    ? vnd(c.amount) : (c.amount_text || settings.cert.programText);
+    ? vnd(c.amount) + (c.units ? ` (${c.units})` : '') : (c.amount_text || settings.cert.programText);
   return {
     name: up(c.name), org: c.org || '', amount: amountLine, project: c.campaign_name || '',
     phone: settings.cert.maskPhone === false ? (c.phone || '') : maskPhone(c.phone || ''),
-    code: c.code, date: fmtDate(c.issued_date), signer: settings.cert.signerName || '',
+    code: c.code, date: fmtDate(c.issued_date), signer: settings.cert.signerName || '', units: c.units || '',
   };
 }
