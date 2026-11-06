@@ -13,6 +13,7 @@
   $$('[data-pane]').forEach(b => b.addEventListener('click', () => {
     $$('[data-pane]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', x === b); });
     Object.entries(panes).forEach(([k, e]) => e.hidden = k !== b.dataset.pane);
+    if (out.dataset.home) { out.innerHTML = ''; return; } // trang chủ: giữ nguyên địa chỉ, kết quả hiện ngay bên dưới
     history.replaceState(null, '', b.dataset.pane === 'ck' ? '/tra-cuu?tab=kiem-tra' : '/tra-cuu');
     out.innerHTML = b.dataset.pane === 'ck' ? '' : '<p class="empty">Nhập thông tin ở trên để bắt đầu tra cứu.</p>';
   }));

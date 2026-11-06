@@ -47,6 +47,9 @@
   const out = $('#lkOut');
   if (!out) return;
   const form = $('.lk-form'), input = $('#q');
+  // Trang chủ: khung kết quả ẩn cho tới khi có kết quả tra cứu / kiểm tra giấy, rồi cuộn tới.
+  const home = !!out.dataset.home, sec = $('#lkSec');
+  if (home && sec) new MutationObserver(() => { const had = !sec.hidden; sec.hidden = !out.innerHTML.trim(); if (!had && !sec.hidden) sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }).observe(out, { childList: true });
   const PER = 12;
   let all = [], tab = 'all', page = 1, sources = [];
 
@@ -93,9 +96,9 @@
     e.preventDefault();
     const q = input.value.trim();
     if (q.length < 2) return;
-    history.replaceState(null, '', '/tra-cuu?q=' + encodeURIComponent(q));
+    if (!home) history.replaceState(null, '', '/tra-cuu?q=' + encodeURIComponent(q));
     run(q);
   });
   if (input.value.trim().length >= 2) run(input.value.trim());
-  else if (!document.getElementById('lk')?.hidden) out.innerHTML = '<p class="empty">Nhập thông tin ở trên để bắt đầu tra cứu.</p>';
+  else if (!home && !document.getElementById('lk')?.hidden) out.innerHTML = '<p class="empty">Nhập thông tin ở trên để bắt đầu tra cứu.</p>';
 })();
