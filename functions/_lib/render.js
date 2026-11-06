@@ -3,6 +3,7 @@ import { esc, fmtDate, fmtDateTime, vnd, codePath } from './util.js';
 import { certValues, IMAGE_KEYS } from './certs.js';
 import { qrSvg } from './qr.js';
 import { tracked } from './news.js';
+import { docKindLabel, docUrl, DOC_TYPES, NEAC_URL, parseSig } from './docs.js';
 
 const V = '2';
 const ICON = {
@@ -179,7 +180,7 @@ export function renderStatement(x) {
 export function renderVerify(x, c, state, tpl) {
   const { s } = x;
   const msgs = {
-    valid: ['Giấy chứng nhận hợp lệ', 'Thông tin dưới đây khớp với dữ liệu gốc của Hệ thống từ thiện Fly To Sky.'],
+    valid: [(c?.doc_file ? docKindLabel(c) : 'Giấy chứng nhận') + ' hợp lệ', 'Thông tin dưới đây khớp với dữ liệu gốc của Hệ thống từ thiện Fly To Sky.'],
     unsigned: ['Giấy chứng nhận có trong hệ thống', 'Mã giấy có trong dữ liệu gốc. Hãy đối chiếu kỹ từng thông tin; quét mã QR trên giấy để xác thực đầy đủ.'],
     invalid: ['Không xác thực được', 'Không tìm thấy giấy với mã này, hoặc mã xác thực không đúng. Giấy có thể đã bị làm giả hoặc chỉnh sửa.'],
     revoked: ['Giấy chứng nhận đã bị thu hồi', 'Giấy này không còn hiệu lực.'],
@@ -188,7 +189,9 @@ export function renderVerify(x, c, state, tpl) {
   const ok = state === 'valid' || state === 'unsigned';
   const info = `<div class="ver ver-${state}"><div class="ver-top"><div class="ver-ic">${ok ? ICON.check : '!'}</div><div><h1>${esc(msgs[0])}</h1><p>${esc(msgs[1])}</p>${state === 'revoked' && c.revoke_reason ? `<p><b>Lý do:</b> ${esc(c.revoke_reason)}</p>` : ''}</div></div>${v ? `<dl class="profile"><div><dt>Mã giấy</dt><dd><b>${esc(c.code)}</b></dd></div>${state === 'valid' ? `<div><dt>Mã xác thực</dt><dd><code>${esc(c.sig)}</code></dd></div>` : ''}<div><dt>Họ tên</dt><dd>${esc(v.name)}${v.org ? '<br><span class="muted">' + esc(v.org) + '</span>' : ''}</dd></div><div><dt>Ghi nhận</dt><dd>${esc(v.amount)}</dd></div><div><dt>Dự án, chương trình</dt><dd>${esc(v.project)}</dd></div><div><dt>Ngày cấp</dt><dd>${esc(v.date)}</dd></div>${v.phone ? `<div><dt>Số điện thoại</dt><dd>${esc(v.phone)}</dd></div>` : ''}<div><dt>Đơn vị cấp</dt><dd>${esc(s.site.owner)}</dd></div></dl>${c.history && c.history !== '[]' ? `<p class="fine">Thông tin đã được điều chỉnh ${JSON.parse(c.history).length} lần, mã giấy giữ nguyên.</p>` : ''}` : ''}<p class="ver-more"><a href="/tra-cuu?tab=kiem-tra">Kiểm tra giấy khác</a> · <a href="/tra-cuu">Tra cứu</a></p></div>`;
   let fig = '';
-  if (ok && tpl) {
+  if (state === 'valid' && c.doc_file) fig = docBlock(c);
+  else if (ok && c.doc_file) fig = `<div class="cv-fig"><div class="card center"><p>Giấy có tệp gốc (${esc(docKindLabel(c))}). Để xem tệp, hãy mở bằng đường dẫn trong mã QR hoặc nhập thêm mã xác thực.</p></div></div>`;
+  else if (ok && tpl) {
     const data = {
       tpl: { background: tpl.background, width: tpl.width, height: tpl.height, fields: (tpl.fields || []).filter(f => f.visible !== false) },
       values: v,
@@ -201,6 +204,20 @@ export function renderVerify(x, c, state, tpl) {
   }
   const main = `<section class="sec bg-paper cert-main"><div class="wrap"><div class="${fig ? 'cv' : 'cv-one'}">${fig}${info}</div></div></section>`;
   return page(x, { title: 'Xác thực Giấy chứng nhận | ' + s.site.owner, noindex: true }, 'page cert-page', main, fig.includes('certCanvas') ? `<script src="/assets/cert.js?v=${V}" defer></script>` : '');
+}
+
+// Khối chữ ký số: kết quả kiểm tra ngay trên hệ thống + hướng dẫn kiểm tra lại tại NEAC.
+export function sigPanel(sig, title = 'Kiểm tra chữ ký số') {
+  if (!sig || !sig.signatures?.length) return '';
+  const vt = v => v ? new Date(v).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '';
+  const yes = (b, t, f) => `<li class="${b ? 'ok' : 'bad'}"><i>${b ? '✓' : '✗'}</i>${esc(b ? t : f)}</li>`;
+  return `<div class="sigp ${sig.ok && sig.signatures.every(s => s.trustedRoot) && sig.signerMatch !== false ? 'sig-ok' : 'sig-bad'}"><h3>${esc(title)}</h3><p class="sig-sum">${esc(sig.summary)}</p>${sig.signatures.map(s => s.error ? `<p class="err">${esc(s.error)}</p>` : `<dl class="profile"><div><dt>Người ký</dt><dd>${esc(s.signer.name)}${s.signer.org && s.signer.org !== s.signer.name ? '<br><span class="muted">' + esc(s.signer.org) + '</span>' : ''}${s.signer.uid ? '<br><span class="muted">' + esc(s.signer.uid) + '</span>' : ''}</dd></div><div><dt>Tổ chức cấp chứng thư</dt><dd>${esc(s.ca)}</dd></div><div><dt>Thời điểm ký</dt><dd>${esc(vt(s.signingTime) || 'Không ghi')}</dd></div><div><dt>Hiệu lực chứng thư</dt><dd>${esc(vt(s.notBefore))} – ${esc(vt(s.notAfter))}</dd></div><div><dt>Chuỗi chứng thực</dt><dd>${esc((s.chain || []).join(' → '))}${s.rootName && !(s.chain || []).includes(s.rootName) ? ' → ' + esc(s.rootName) : ''}</dd></div></dl><ul class="sig-checks">${yes(s.integrity, 'Tài liệu nguyên vẹn, không bị sửa sau khi ký', 'Nội dung tài liệu đã bị thay đổi sau khi ký')}${yes(s.signatureValid, 'Chữ ký khớp với chứng thư số của người ký', 'Chữ ký không khớp chứng thư số')}${yes(s.chainOk && s.trustedRoot, 'Chứng thư thuộc chuỗi tin cậy của Root CA quốc gia', 'Chứng thư không thuộc chuỗi tin cậy quốc gia đã biết')}${yes(s.certValidAtSigning, 'Chứng thư còn hiệu lực tại thời điểm ký', 'Chứng thư hết hạn hoặc chưa hiệu lực khi ký')}</ul>`).join('')}${sig.modifiedAfter ? '<p class="err">Có nội dung được thêm vào tệp sau chữ ký cuối cùng.</p>' : ''}${sig.signerMatch === false ? '<p class="err">Người ký không phải đơn vị cấp giấy của Hệ thống từ thiện Fly To Sky.</p>' : ''}<p class="fine">Hệ thống tự kiểm tra theo cùng nguyên tắc với Trung tâm Chứng thực điện tử quốc gia (NEAC); tình trạng thu hồi chứng thư cần kiểm tra trực tuyến tại NEAC. Để kiểm tra lại: tải tệp PDF về, mở <a href="${NEAC_URL}" target="_blank" rel="noopener">neac.gov.vn</a> → Dịch vụ trực tuyến → Kiểm tra văn bản ký số, rồi tải tệp lên.</p><a class="btn btn-ghost btn-sm" href="${NEAC_URL}" target="_blank" rel="noopener">Kiểm tra tại NEAC ↗</a></div>`;
+}
+
+function docBlock(c) {
+  const sig = parseSig(c), url = docUrl(c), pdf = c.doc_mime === 'application/pdf';
+  const label = docKindLabel(c) + ' – ' + (c.doc_type === 'digital' ? 'PDF có chữ ký số' : 'bản scan có chữ ký tay');
+  return `<div class="cv-fig"><div class="cv-img doc-view">${pdf ? `<iframe src="${esc(url)}#view=FitH" title="${esc(label)}"></iframe>` : `<img src="${esc(url)}" alt="${esc(label)}">`}</div><p class="fine"><b>${esc(label)}</b>. ${c.doc_type === 'scan' ? 'Bản scan giấy có chữ ký tay; bản gốc do đơn vị cấp lưu giữ. Hãy đối chiếu thông tin với trang này.' : 'Tệp gốc có chữ ký số; tải về để kiểm tra lại tại NEAC.'}</p><div class="btns cv-btns"><a class="btn btn-primary btn-sm" href="${esc(docUrl(c, true))}">Tải ${pdf ? 'PDF' : 'ảnh'} gốc</a><a class="btn btn-ghost btn-sm" href="${esc(url)}" target="_blank" rel="noopener">Mở toàn màn hình ↗</a></div>${c.doc_type === 'digital' ? sigPanel(sig, 'Chữ ký số trên tệp gốc') : ''}</div>`;
 }
 
 export function render404(x) {

@@ -90,6 +90,8 @@ export default {
     signature: '',
     stamp: '',
     programText: 'Đã tham gia chương trình',
+    // Người ký hợp lệ trên PDF ký số (tách bằng |): tên đơn vị hoặc mã số thuế trong chứng thư số.
+    signerMatch: 'FLY TO SKY|5901213612',
   },
   // Các hệ thống khác cùng cấp giấy, tra cứu chung một lần.
   sources: {

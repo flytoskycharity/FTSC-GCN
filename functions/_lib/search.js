@@ -1,5 +1,6 @@
 import { normPhone, nameKey, maskPhone, normCode, validCode } from './util.js';
 import { verifyPath } from './certs.js';
+import { docKindLabel, DOC_TYPES } from './docs.js';
 
 // Tìm trong dữ liệu của cổng: theo mã giấy, số điện thoại, hoặc họ tên (không dấu, khớp một phần).
 export async function searchLocal(env, settings, q) {
@@ -12,12 +13,13 @@ export async function searchLocal(env, settings, q) {
   if (phone) add(await env.DB.prepare(base + 'c.phone=? ORDER BY c.id DESC LIMIT 100').bind(phone).all());
   else if (key.length >= 3 && !/\d{5}/.test(key)) add(await env.DB.prepare(base + "c.name_key LIKE ? ORDER BY c.id DESC LIMIT 100").bind('%' + key + '%').all());
   return [...seen.values()].map(c => ({
-    source: 'fts', sourceLabel: settings.site.owner, type: c.amount > 0 ? 'Giấy chứng nhận ủng hộ' : 'Giấy chứng nhận',
+    source: 'fts', sourceLabel: settings.site.owner, type: c.doc_file ? docKindLabel(c) : c.amount > 0 ? 'Giấy chứng nhận ủng hộ' : 'Giấy chứng nhận',
     code: c.code, name: c.name, org: c.org, phone: maskPhone(c.phone), project: c.campaign_name,
     amount: c.amount > 0 ? c.amount : null, amountText: c.amount > 0 ? '' : (c.amount_text || settings.cert.programText),
     date: c.issued_date, status: c.status === 'revoked' ? 'revoked' : 'valid', url: verifyPath(c),
     documents: [
       ...(c.file_url ? [{ label: 'Bản gốc', url: c.file_url }] : []),
+      ...(c.doc_file ? [{ label: docKindLabel(c) + ' (' + (c.doc_type === 'digital' ? 'PDF ký số' : 'bản scan ký tay') + ')', url: verifyPath(c) }] : []),
       ...(c.wants_confirm ? [{ label: 'Giấy xác nhận tài trợ', url: c.confirm_file || '', status: c.confirm_file ? '' : 'đang xử lý (7–10 ngày)' }] : []),
     ],
   }));

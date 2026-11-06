@@ -156,6 +156,14 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;back
 .plan li{display:grid;grid-template-columns:200px 1fr;gap:12px;padding:10px 12px;border-left:3px solid rgba(5,34,139,.2);background:#f9fbff;border-radius:0 10px 10px 0}
 .plan li.done{border-color:#2e9e5b}.plan li.done b::after{content:" ✓";color:#2e9e5b}
 @media (max-width:640px){.plan li{grid-template-columns:1fr;gap:2px}}
+/* tệp giấy đã cấp, chữ ký số */
+.doc-view{min-height:auto}.doc-view iframe{display:block;width:100%;height:min(80vh,900px);border:0}.doc-view img{width:100%}
+.sigp{background:#fff;border-radius:var(--r);padding:20px 22px;margin-top:18px;border-top:5px solid #2e9e5b;box-shadow:0 18px 40px -30px rgba(3,21,82,.45)}
+.sigp.sig-bad{border-top-color:#a52a1f}.sigp h3{font-size:1.15em;margin-bottom:6px;color:var(--primary-dark)}
+.sig-sum{font-weight:800;margin:0 0 10px}.sig-ok .sig-sum{color:#1d6b3a}.sig-bad .sig-sum{color:#a52a1f}
+.sig-checks{list-style:none;padding:0;margin:12px 0;display:grid;gap:6px;font-size:.92em}
+.sig-checks li{display:flex;gap:8px}.sig-checks i{font-style:normal;font-weight:800}.sig-checks .ok i{color:#1d6b3a}.sig-checks .bad{color:#a52a1f}
+.sigp .err{color:#a52a1f;font-weight:700}
 /* loại giấy, chống giả */
 .kinds{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px}
 .kind{background:var(--paper);border-radius:var(--r);padding:28px}

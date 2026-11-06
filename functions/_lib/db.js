@@ -25,6 +25,10 @@ const COLUMNS = [
   ['campaigns', "benefits TEXT NOT NULL DEFAULT ''"],
   ['campaigns', "external_url TEXT NOT NULL DEFAULT ''"], ['campaigns', "external_memo TEXT NOT NULL DEFAULT ''"],
   ['campaigns', "ext_ref TEXT NOT NULL DEFAULT ''"], ['campaigns', "ext_data TEXT NOT NULL DEFAULT ''"],
+  // Tệp giấy đã cấp ở nơi khác: bản scan ký tay hoặc PDF ký số.
+  ['certificates', "doc_kind TEXT NOT NULL DEFAULT ''"], ['certificates', "doc_type TEXT NOT NULL DEFAULT ''"],
+  ['certificates', "doc_file TEXT NOT NULL DEFAULT ''"], ['certificates', "doc_mime TEXT NOT NULL DEFAULT ''"],
+  ['certificates', "doc_hash TEXT NOT NULL DEFAULT ''"], ['certificates', "doc_sig TEXT NOT NULL DEFAULT ''"],
   ['donations', "donor_type TEXT NOT NULL DEFAULT ''"], ['donations', "position TEXT NOT NULL DEFAULT ''"],
   ['donations', "tax_code TEXT NOT NULL DEFAULT ''"], ['donations', "address TEXT NOT NULL DEFAULT ''"],
   ['donations', "wants_confirm INTEGER NOT NULL DEFAULT 0"], ['donations', "confirm_file TEXT NOT NULL DEFAULT ''"],

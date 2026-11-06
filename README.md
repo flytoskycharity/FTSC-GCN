@@ -18,6 +18,14 @@ Chạy trên **Cloudflare Pages** (cùng kiến trúc với Tủ sách Bồ Câu
 - **Nhiều mẫu cho một dự án**: mẫu có “mức tiền tối thiểu”; hệ thống chọn mẫu cao nhất mà số tiền đạt tới, nhiều mẫu cùng mức thì chọn ngẫu nhiên. Trình sửa mẫu kéo thả ngay trong admin.
 - **Admin riêng** (không phải sửa mã): dự án, mẫu, giấy (cấp lẻ, cấp hàng loạt, sửa, thu hồi), giao dịch & đối soát, nhập dữ liệu cũ từ Google Sheets, cài đặt nội dung, tài khoản & nhật ký.
 
+## Tệp giấy cấp ở nơi khác & chữ ký số
+Admin → Giấy chứng nhận → Sửa → **Tệp giấy đã cấp**: chọn loại (Giấy khen / Giấy chứng nhận / Khác) và hình thức. Chỉ nhận 2 hình thức:
+- **Bản scan có chữ ký tay** (ảnh JPG/PNG/WEBP hoặc PDF).
+- **PDF có chữ ký số**: hệ thống kiểm tra ngay khi tải (tài liệu nguyên vẹn, chữ ký khớp chứng thư, chuỗi chứng thư lên Root CA quốc gia, chứng thư còn hiệu lực khi ký). Không hợp lệ thì từ chối.
+
+Khi tra cứu, trang xác thực hiện tệp gốc và kết quả chữ ký số. Ở thẻ Kiểm tra giấy, người dùng tải PDF lên: hệ thống kiểm tra chữ ký số và đối chiếu với tệp gốc đã lưu (trùng khớp từng byte). PDF ký sai hoặc người ký không phải Fly To Sky được ghi vào Nhật ký xác thực.
+NEAC (neac.gov.vn) không có giao diện kết nối công khai, nên hệ thống tự kiểm tra theo cùng nguyên tắc và kèm nút mở trang kiểm tra của NEAC để đối chiếu thủ công. Tình trạng thu hồi chứng thư (OCSP/CRL) chưa kiểm tra trực tuyến.
+
 ## Triển khai lần đầu trên Cloudflare
 1. **Workers & Pages → Create → Pages → Connect to Git** → chọn `flytoskycharity/FTSC-GCN`.
    - Production branch: `main` · Framework preset: *None* · Build command: *(để trống)* · Build output directory: `public`.
@@ -71,4 +79,5 @@ Mỗi hệ thống trả `GET <đường dẫn>?q=...` với header `x-fts-feder
 ```sh
 node --no-warnings tests/dev-server.mjs   # http://localhost:8788 , admin / test-pass
 node tests/smoke.mjs                      # kiểm tra nhanh các trang và API
+node tests/pdfsig.mjs                     # kiểm tra bộ đọc chữ ký số PDF
 ```

@@ -26,6 +26,6 @@ export const onRequestGet = pageRoute(p => '/xac-thuc' + (segs(p).length ? '/' +
   if (env.DB && (state === 'invalid' || state === 'revoked')) {
     await logVerify(env, request, { kind: 'url', verdict: state, code, qr: u.pathname + u.search, detail: c ? (state === 'revoked' ? 'Mở giấy đã thu hồi' : 'Mã có thật nhưng mã xác thực sai') : 'Mã không có trong hệ thống' }).catch(() => {});
   }
-  const tpl = c && (state === 'valid' || state === 'unsigned') && (!c.file_url || c.template_id) ? await templateOf(env, c) : null;
+  const tpl = c && !c.doc_file && (state === 'valid' || state === 'unsigned') && (!c.file_url || c.template_id) ? await templateOf(env, c) : null;
   return html(renderVerify(x, state === 'invalid' ? null : c, state, tpl), state === 'invalid' ? 404 : 200, { 'X-Robots-Tag': 'noindex' });
 });

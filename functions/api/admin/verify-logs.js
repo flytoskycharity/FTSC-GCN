@@ -11,7 +11,7 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
       const r = await env.DB.prepare('SELECT image FROM verify_logs WHERE id=?').bind(img).first();
       const f = r?.image && env.MEDIA ? await env.MEDIA.get(r.image) : null;
       if (!f) return new Response('Không có ảnh', { status: 404 });
-      return new Response(f.body, { headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
+      return new Response(f.body, { headers: { 'Content-Type': r.image.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
     }
     const status = u.searchParams.get('status') || 'new', kind = u.searchParams.get('kind') || '', page = Math.max(1, Number(u.searchParams.get('page')) || 1);
     const where = [], args = [];

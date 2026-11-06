@@ -157,13 +157,28 @@
   const head = (k, extra = '') => `<div class="ver-top"><div class="ver-ic">${V[k][1]}</div><div><h1>${esc(V[k][2])}</h1><p>${esc(extra || V[k][3])}</p></div></div>`;
   const tick = ok => `<b class="${ok ? 'r-ok' : 'r-bad'}">${ok ? '✓' : '✗'}</b>`;
 
+  // Kết quả kiểm tra chữ ký số PDF (máy chủ kiểm tra) + đối chiếu với tệp gốc đã lưu.
+  const vt = v => v ? new Date(v).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '—';
+  function pdfPanel(r) {
+    if (!r) return '';
+    const match = r.match ? `<div class="ver ${r.match.revoked ? 'ver-revoked' : 'ver-valid'}"><div class="ver-top"><div class="ver-ic">${r.match.revoked ? '!' : '✓'}</div><div><h1>${r.match.revoked ? 'Đúng tệp gốc nhưng giấy đã bị thu hồi' : 'Đúng tệp gốc đã lưu trên hệ thống'}</h1><p>${esc(r.match.kind)} cấp cho <b>${esc(r.match.name)}</b>${r.match.project ? ' – ' + esc(r.match.project) : ''}. Mã giấy <code>${esc(r.match.code)}</code>.</p></div></div><p><a class="btn btn-primary btn-sm" href="${esc(r.match.url)}">Xem trang xác thực</a></p></div>` : '';
+    if (!r.signatures?.length) return match;
+    const li = (b, t, f2) => `<li class="${b ? 'ok' : 'bad'}"><i>${b ? '✓' : '✗'}</i>${esc(b ? t : f2)}</li>`;
+    return match + `<div class="sigp ${r.ok && r.signatures.every(s => s.trustedRoot) && r.signerMatch !== false ? 'sig-ok' : 'sig-bad'}"><h3>Chữ ký số trên tệp PDF</h3><p class="sig-sum">${esc(r.summary)}</p>${r.signatures.map(s => s.error ? `<p class="err">${esc(s.error)}</p>` : `<dl class="profile"><div><dt>Người ký</dt><dd>${esc(s.signer.name)}${s.signer.uid ? '<br><span class="muted">' + esc(s.signer.uid) + '</span>' : ''}</dd></div><div><dt>Tổ chức cấp chứng thư</dt><dd>${esc(s.ca)}</dd></div><div><dt>Thời điểm ký</dt><dd>${esc(vt(s.signingTime))}</dd></div><div><dt>Chuỗi chứng thực</dt><dd>${esc((s.chain || []).join(' → '))}</dd></div></dl><ul class="sig-checks">${li(s.integrity, 'Tài liệu nguyên vẹn, không bị sửa sau khi ký', 'Nội dung đã bị thay đổi sau khi ký')}${li(s.signatureValid, 'Chữ ký khớp chứng thư số', 'Chữ ký không khớp chứng thư số')}${li(s.chainOk && s.trustedRoot, 'Chứng thư thuộc chuỗi tin cậy của Root CA quốc gia', 'Chứng thư không thuộc chuỗi tin cậy quốc gia đã biết')}${li(s.certValidAtSigning, 'Chứng thư còn hiệu lực khi ký', 'Chứng thư hết hạn hoặc chưa hiệu lực khi ký')}</ul>`).join('')}${r.signerMatch === false ? '<p class="err">Người ký không phải đơn vị cấp giấy của Hệ thống từ thiện Fly To Sky.</p>' : ''}<p class="fine">Kiểm tra lại tại Trung tâm Chứng thực điện tử quốc gia: mở neac.gov.vn → Dịch vụ trực tuyến → Kiểm tra văn bản ký số, tải tệp này lên.</p><a class="btn btn-ghost btn-sm" href="https://neac.gov.vn/vi" target="_blank" rel="noopener">Kiểm tra tại NEAC ↗</a></div>`;
+  }
+
   async function check(f) {
-    out.innerHTML = '<div class="lk-wait"><span class="spin"></span>Đang đọc mã QR trên giấy…</div>';
+    out.innerHTML = '<div class="lk-wait"><span class="spin"></span>Đang đọc mã QR và chữ ký số trên giấy…</div>';
     out.scrollIntoView({ behavior: 'smooth', block: 'start' });
     let t = null;
+    const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+    const pdfReq = isPdf && f.size <= 15e6 ? fetch('/api/verify-pdf', { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: f }).then(r => r.json()).catch(() => null) : Promise.resolve(null);
+    const addPdf = async () => { const r = await pdfReq; if (r && (r.signatures?.length || r.match)) out.insertAdjacentHTML('afterbegin', pdfPanel(r)); return r; };
     try {
       t = await readFile(f);
       if (!t.data) {
+        const r = await pdfReq;
+        if (r && (r.signatures?.length || r.match)) { out.innerHTML = pdfPanel(r); return; }
         out.innerHTML = `<div class="ver ver-invalid">${head('no_qr')}</div>`;
         if (t.src) report(t, 'no_qr', { detail: 'Không đọc được mã QR. Tệp: ' + f.name });
         return;
@@ -173,17 +188,20 @@
       if (['invalid', 'revoked', 'foreign'].includes(j.state)) {
         out.innerHTML = `<div class="ver ver-${V[j.state][0]}">${head(j.state, j.reason)}${j.code ? `<p>Mã trên QR: <code>${esc(j.code)}</code></p>` : ''}${logged}</div>`;
         report(t, j.state, { code: j.code || '', detail: j.reason || '' });
+        await addPdf();
         return;
       }
       if (j.state === 'remote' || j.state === 'remote-valid') {
         const i = j.info || {};
         out.innerHTML = `<div class="ver ver-unsigned"><div class="ver-top"><div class="ver-ic">i</div><div><h1>Giấy của ${esc(j.label)}</h1><p>${j.state === 'remote-valid' ? 'Mã QR hợp lệ. Hãy đối chiếu từng thông tin dưới đây với tờ giấy; khác một chi tiết là giấy giả. Để so ảnh tự động, kiểm tra trên trang của hệ thống cấp giấy.' : 'Chưa kết nối được hệ thống cấp giấy. Mở trang xác thực của hệ thống đó để kiểm tra.'}</p></div></div>${j.state === 'remote-valid' ? `<dl class="profile">${[['Mã giấy', i.code], ['Họ tên', i.name], ['Dự án, chương trình', i.project], ['Ghi nhận', i.amount ? Number(i.amount).toLocaleString('vi-VN') + ' VNĐ' : i.amountText], ['Ngày cấp', dmy(i.date)]].filter(r => r[1]).map(r => `<div><dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd></div>`).join('')}</dl>` : ''}<p class="mt"><a class="btn btn-primary btn-sm" href="${esc(j.url)}" target="_blank" rel="noopener">Mở trang xác thực của ${esc(j.label)} ↗</a></p></div>`;
+        await addPdf();
         return;
       }
       // Giấy của cổng này
       const R = j.render;
       if (!R) {
-        out.innerHTML = `<div class="ver ver-unsigned">${head('unsure', 'Giấy cấp ở hệ thống cũ, chưa có mẫu để so tự động. Hãy đối chiếu với trang xác thực.')}<p class="mt"><a class="btn btn-primary btn-sm" href="${esc(j.url)}">Mở trang xác thực</a></p></div>`;
+        out.innerHTML = `<div class="ver ver-unsigned">${head('unsure', 'Giấy này được cấp ở hệ thống cũ hoặc nơi khác nên chưa so ảnh tự động được. Hãy đối chiếu từng thông tin với trang xác thực.')}<p class="mt"><a class="btn btn-primary btn-sm" href="${esc(j.url)}">Mở trang xác thực</a></p></div>`;
+        await addPdf();
         return;
       }
       out.innerHTML = '<div class="lk-wait"><span class="spin"></span>Đang so từng dòng thông tin với giấy gốc…</div>';
@@ -199,12 +217,16 @@
       $('#ckYours')?.prepend(slice(t.src, 0, 0, t.W, t.H, Math.min(1200, t.W)));
       oc.style.width = '100%'; $('#ckOrig').prepend(oc);
       out.querySelectorAll('.ck-diff figure').forEach(fg => { const r = res.rows[+fg.dataset.i]; fg.prepend(crop(fg.dataset.s === 'up' ? res.up : res.orig, r.R)); });
+      await addPdf();
       if (res.verdict !== 'match') {
         const wrong = res.rows.filter(r => r.v === null || r.v > LIMIT).map(r => r.label).join(', ');
         report(t, res.verdict, { code: j.code, detail: (res.verdict === 'mismatch' ? 'Dòng sai: ' : 'Chưa so được: ') + wrong });
       }
     } catch (x) {
       console.error(x);
+      // Không dựng được trang PDF (VD: thiếu phông) nhưng vẫn có thể có chữ ký số để kiểm tra.
+      const r = await pdfReq;
+      if (r && (r.signatures?.length || r.match)) { out.innerHTML = pdfPanel(r); return; }
       out.innerHTML = `<div class="ver ver-invalid">${head('no_qr', 'Không đọc được tệp này. Vui lòng thử ảnh JPG/PNG hoặc tệp PDF khác.')}</div>`;
     }
   }

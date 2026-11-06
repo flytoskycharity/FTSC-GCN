@@ -28,11 +28,11 @@ export async function renderData(env, settings, origin, c) {
 }
 
 // Ghi nhật ký xác thực sai/lỗi. Ảnh (nếu có) lưu ở vùng riêng tư của R2, chỉ admin xem được.
-export async function logVerify(env, request, { kind, verdict, code = '', qr = '', detail = '', image = null }) {
+export async function logVerify(env, request, { kind, verdict, code = '', qr = '', detail = '', image = null, file = null }) {
   let key = '';
-  if (image && env.MEDIA) {
-    key = `private/verify/${new Date().toISOString().slice(0, 10)}-${randomHex(8)}.jpg`;
-    await env.MEDIA.put(key, image, { httpMetadata: { contentType: 'image/jpeg' } }).catch(() => { key = ''; });
+  if ((image || file) && env.MEDIA) {
+    key = `private/verify/${new Date().toISOString().slice(0, 10)}-${randomHex(8)}.${file ? 'pdf' : 'jpg'}`;
+    await env.MEDIA.put(key, file || image, { httpMetadata: { contentType: file ? 'application/pdf' : 'image/jpeg' } }).catch(() => { key = ''; });
   }
   await env.DB.prepare('INSERT INTO verify_logs(kind,verdict,code,qr,detail,image,ip,ua) VALUES(?,?,?,?,?,?,?,?)')
     .bind(kind, verdict, clip(code, 80), clip(qr, 500), clip(detail, 2000), key, request.headers.get('cf-connecting-ip') || '', clip(request.headers.get('user-agent'), 300)).run();

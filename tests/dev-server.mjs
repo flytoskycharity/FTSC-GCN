@@ -44,7 +44,7 @@ const routes = [];
 routes.sort((a, b) => a.dyn - b.dyn);
 
 const redirects = fs.existsSync(path.join(pub, '_redirects')) ? fs.readFileSync(path.join(pub, '_redirects'), 'utf8').split('\n').map(l => l.trim().split(/\s+/)).filter(l => l.length >= 2) : [];
-const types = { '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.jpg': 'image/jpeg', '.webp': 'image/webp' };
+const types = { '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.mjs': 'text/javascript', '.pdf': 'application/pdf' };
 
 http.createServer(async (req, res) => {
   try {
