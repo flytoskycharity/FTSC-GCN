@@ -106,3 +106,4 @@ td .sub{display:block;font-size:.84em;opacity:.7}
  .grid2,.ed{grid-template-columns:1fr}
 }
 .qstate{background:rgba(255,255,255,.1);border-radius:8px;padding:6px 8px;color:#dbe6ff;font-size:.95em}
+.danger-link{color:#b3261e!important}

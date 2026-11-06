@@ -1,9 +1,9 @@
 // Giao dịch sao kê và lượt đăng ký ủng hộ: đồng bộ, dán sao kê tay, gán giao dịch chưa nhận diện để cấp GCN.
-import { adminApi, log } from '../../_lib/auth.js';
+import { adminApi, log, can } from '../../_lib/auth.js';
 import { loadSettings, getState, setState } from '../../_lib/db.js';
 import { json, readJson, clip, normPhone, vnToday } from '../../_lib/util.js';
 import { syncBank, applyTx, parsePasted, statementUrl, fetchStatement, payDonation } from '../../_lib/bank.js';
-import { issueCertificate, verifyPath } from '../../_lib/certs.js';
+import { issueCertificate, verifyPath, deleteCertificate } from '../../_lib/certs.js';
 import { campaignById } from '../../_lib/campaigns.js';
 
 export const onRequest = adminApi('edit', async ({ request, env, me }) => {
@@ -74,6 +74,20 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     const cert = await env.DB.prepare('SELECT code, sig FROM certificates WHERE id=?').bind(certId).first();
     await log(env, me, `duyệt ủng hộ #${d.id} ${name} ${amount}, cấp ${cert?.code}`);
     return json({ ok: true, code: cert?.code, url: cert ? verifyPath(cert) : '' });
+  }
+  if (b.action === 'deleteDonation') {
+    // Xóa hẳn lượt ủng hộ (đăng ký nhầm, trùng, thử). Lượt đã cấp giấy thì xóa luôn giấy: chỉ Quản trị cao nhất.
+    const d = await env.DB.prepare('SELECT * FROM donations WHERE id=?').bind(Number(b.donation) || 0).first();
+    if (!d) return json({ error: 'Không tìm thấy lượt ủng hộ.' }, 404);
+    const cert = d.cert_id ? await env.DB.prepare('SELECT * FROM certificates WHERE id=?').bind(d.cert_id).first() : null;
+    if (cert && !can(me, 'super')) return json({ error: 'Lượt này đã cấp Giấy chứng nhận. Chỉ Quản trị cao nhất được xóa; bạn có thể thu hồi giấy ở mục Giấy chứng nhận.' }, 403);
+    if (cert) await deleteCertificate(env, cert);
+    await env.DB.batch([
+      env.DB.prepare('UPDATE bank_tx SET donation_id=0 WHERE donation_id=?').bind(d.id),
+      env.DB.prepare('DELETE FROM donations WHERE id=?').bind(d.id),
+    ]);
+    await log(env, me, `xóa lượt ủng hộ #${d.id} ${d.name} ${d.amount}` + (cert ? ' và giấy ' + cert.code : ''));
+    return json({ ok: true });
   }
   if (b.action === 'cancelDonation' || b.action === 'restoreDonation') {
     const [to, from] = b.action === 'cancelDonation' ? ['cancelled', 'pending'] : ['pending', 'cancelled'];

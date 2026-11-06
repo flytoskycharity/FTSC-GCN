@@ -1,9 +1,9 @@
 // Hàng đợi ghép ảnh Giấy chứng nhận. Trình duyệt quản trị (có quyền xem phôi) ghép nền + chữ thành một ảnh JPEG
 // rồi gửi lên đây; trang công khai chỉ hiện ảnh đã ghép, không bao giờ gửi nền trống, chữ ký, con dấu riêng.
 import { adminApi, randomHex } from '../../_lib/auth.js';
-import { loadSettings } from '../../_lib/db.js';
+import { loadSettings, getState, setState } from '../../_lib/db.js';
 import { json, codePath } from '../../_lib/util.js';
-import { certValues, templateOf } from '../../_lib/certs.js';
+import { certValues, templateOf, staleImages } from '../../_lib/certs.js';
 import { qrSvg } from '../../_lib/qr.js';
 
 const PENDING = "status='valid' AND img_ok=0 AND doc_file='' AND (file_url='' OR template_id>0)";
@@ -11,6 +11,9 @@ const PENDING = "status='valid' AND img_ok=0 AND doc_file='' AND (file_url='' OR
 export const onRequest = adminApi('edit', async ({ request, env }) => {
   const u = new URL(request.url);
   if (request.method === 'GET') {
+    // Đổi cách dựng giấy (VD: tự thu nhỏ chữ dài) → ghép lại toàn bộ ảnh một lần.
+    const REV = 2;
+    if (((await getState(env, 'img_rev')).rev || 0) < REV) { await staleImages(env); await setState(env, 'img_rev', { rev: REV }); }
     const settings = await loadSettings(env), origin = String(settings.site.url || u.origin).replace(/\/$/, '');
     const left = (await env.DB.prepare(`SELECT COUNT(*) n FROM certificates WHERE ${PENDING}`).first())?.n || 0;
     const { results } = await env.DB.prepare(`SELECT * FROM certificates WHERE ${PENDING} ORDER BY id DESC LIMIT 8`).all();

@@ -139,3 +139,14 @@ export function historyOf(c) {
     return { at: h.at || '', by: h.by || '', reason: h.reason || '', changes };
   }).filter(h => h.changes.length);
 }
+
+// Xóa hẳn một giấy: dọn ảnh đã ghép, đề xuất điều chỉnh, liên kết với lượt ủng hộ/giao dịch.
+export async function deleteCertificate(env, cert) {
+  if (cert.cert_image && env.MEDIA) await env.MEDIA.delete(cert.cert_image).catch(() => {});
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM cert_requests WHERE cert_id=?').bind(cert.id),
+    env.DB.prepare('UPDATE donations SET cert_id=0 WHERE cert_id=?').bind(cert.id),
+    env.DB.prepare('UPDATE bank_tx SET cert_id=0 WHERE cert_id=?').bind(cert.id),
+    env.DB.prepare('DELETE FROM certificates WHERE id=?').bind(cert.id),
+  ]);
+}

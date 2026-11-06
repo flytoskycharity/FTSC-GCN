@@ -1,7 +1,7 @@
 import { adminApi, log, can } from '../../_lib/auth.js';
 import { loadSettings } from '../../_lib/db.js';
 import { json, readJson, clip, nameKey, normPhone, toIsoDate, vnToday, amountOf } from '../../_lib/util.js';
-import { issueCertificate, verifyPath } from '../../_lib/certs.js';
+import { issueCertificate, verifyPath, deleteCertificate } from '../../_lib/certs.js';
 import { campaignById } from '../../_lib/campaigns.js';
 
 const PAGE = 30;
@@ -85,7 +85,7 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
   }
   if (b.action === 'delete') {
     if (!can(me, 'super')) return json({ error: 'Chỉ Quản trị cao nhất được xóa giấy. Hãy dùng "Thu hồi".' }, 403);
-    await env.DB.prepare('DELETE FROM certificates WHERE id=?').bind(id).run();
+    await deleteCertificate(env, cur);
     await log(env, me, 'xóa giấy ' + cur.code);
     return json({ ok: true });
   }

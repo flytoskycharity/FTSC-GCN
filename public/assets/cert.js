@@ -43,8 +43,15 @@
       const family = f.font === 'serif' ? `"${serif}",Georgia,serif` : `"${sans}",Arial,sans-serif`;
       const font = () => `${f.bold ? '700' : '400'} ${size}px ${family}`;
       ctx.font = font();
-      const maxw = (f.maxw || (f.align === 'center' ? 88 : 60)) / 100 * W;
-      while (ctx.measureText(text).width > maxw && size > 8) { size *= 0.95; ctx.font = font(); }
+      // Chữ dài tự thu nhỏ để không tràn lề: giới hạn theo khoảng trống thực tế từ vị trí đặt chữ tới mép giấy
+      // (chừa lề 5%), và theo độ rộng tối đa admin đặt cho ô (nếu có).
+      const pad = 0.05 * W, align = f.align || 'center';
+      const room = align === 'center' ? 2 * Math.min(x, W - x) - 2 * pad : align === 'right' ? x - pad : W - x - pad;
+      const maxw = Math.max(W * 0.05, Math.min(room, f.maxw ? f.maxw / 100 * W : Infinity));
+      ctx.font = font();
+      const wNow = ctx.measureText(text).width;
+      if (wNow > maxw) { size = Math.max(6, size * maxw / wNow); ctx.font = font(); }
+      while (ctx.measureText(text).width > maxw && size > 6) { size *= 0.97; ctx.font = font(); }
       ctx.fillStyle = f.color || '#14333c';
       ctx.textAlign = f.align || 'center';
       ctx.textBaseline = 'middle';
