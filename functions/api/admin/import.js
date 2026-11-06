@@ -1,7 +1,7 @@
 // Nhập dữ liệu cũ từ Google Sheets (bảng GCN và KEUGOI của hệ thống Apps Script) hoặc từ CSV dán vào.
 import { adminApi, log } from '../../_lib/auth.js';
 import { loadSettings } from '../../_lib/db.js';
-import { json, readJson, nameKey, normPhone, toIsoDate, amountOf, slugify, clip, money, randomInt } from '../../_lib/util.js';
+import { normCode, validCode, json, readJson, nameKey, normPhone, toIsoDate, amountOf, slugify, clip, money, randomInt } from '../../_lib/util.js';
 import { certSig } from '../../_lib/certs.js';
 import { parseCsv } from '../../_lib/csv.js';
 
@@ -91,11 +91,17 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     const g = k => ix[k] >= 0 && ix[k] < r.length ? String(r[ix[k]] ?? '').trim() : '';
     const raw = ix.amount >= 0 && ix.amount < r.length ? r[ix.amount] : '';
     const amt = typeof raw === 'number' ? { amount: raw, text: '' } : amountOf(g('amount'));
-    return { row: i + 2, code: g('code').toUpperCase().replace(/\s+/g, ''), name: clip(g('name'), 160), campaign: clip(g('campaign'), 200), issued_date: toIsoDate(g('date')),
+    return { row: i + 2, code: normCode(g('code')), name: clip(g('name'), 160), campaign: clip(g('campaign'), 200), issued_date: toIsoDate(g('date')),
       amount: amt.amount, amount_text: amt.text, phone: normPhone(g('phone')), file_url: /^https:\/\//.test(g('link')) ? clip(g('link'), 500) : '', org: clip(g('org'), 200) };
   }).filter(x => x.name);
-  const bad = items.filter(x => x.code && !/^[A-Z0-9][A-Z0-9_./-]{1,40}$/.test(x.code));
-  if (!commit) return json({ preview: items.slice(0, 50), items, total: items.length, invalidCodes: bad.map(x => `Dòng ${x.row}: ${x.code}`).slice(0, 20) });
+  // Hệ thống cũ có mã dùng chung cho nhiều người (VD: số quyết định "48QĐ/ĐTN"). Mã đầu giữ nguyên, các dòng sau thêm -2, -3…
+  // theo thứ tự trong bảng, nên nhập lại nhiều lần vẫn ra cùng mã.
+  if (!Array.isArray(b.items)) {
+    const count = {};
+    for (const x of items) if (x.code) { count[x.code] = (count[x.code] || 0) + 1; if (count[x.code] > 1) { x.sharedCode = x.code; x.code = x.code + '-' + count[x.code]; } }
+  }
+  const bad = items.filter(x => x.code && !validCode(x.code));
+  if (!commit) return json({ preview: items.slice(0, 50), items, total: items.length, shared: items.filter(x => x.sharedCode).map(x => `Dòng ${x.row}: ${x.sharedCode} → ${x.code}`), invalidCodes: bad.map(x => `Dòng ${x.row}: ${x.code}`).slice(0, 20) });
   if (items.length > 400) return json({ error: 'Mỗi lần ghi tối đa 400 dòng; trang quản trị tự chia nhỏ.' }, 400);
 
   // Nạp sẵn dự án và mã đã có để hạn chế số truy vấn.
@@ -111,7 +117,7 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
   let skipped = 0, newCamps = 0;
   const overwrite = !!b.overwrite;
   for (const x of items) {
-    if (x.code && !/^[A-Z0-9][A-Z0-9_./-]{1,40}$/.test(x.code)) { errors.push(`Dòng ${x.row}: mã "${x.code}" không hợp lệ`); continue; }
+    if (x.code && !validCode(x.code)) { errors.push(`Dòng ${x.row}: mã "${x.code}" không hợp lệ`); continue; }
     let camp = x.campaign ? byName.get(nameKey(x.campaign)) : null;
     if (x.campaign && !camp && b.createCampaigns !== false) {
       const r = await env.DB.prepare("INSERT INTO campaigns(slug,title,kind,status) VALUES(?,?,?,'closed')").bind(slugify(x.campaign) + '-' + Date.now().toString(36).slice(-5), x.campaign, x.amount ? 'money' : 'program').run();

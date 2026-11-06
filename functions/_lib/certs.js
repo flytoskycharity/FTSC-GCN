@@ -1,4 +1,4 @@
-import { hmac, randomInt, nameKey, normPhone, maskPhone, vnToday, fmtDate, vnd, toIsoDate } from './util.js';
+import { normCode, validCode, codePath, hmac, randomInt, nameKey, normPhone, maskPhone, vnToday, fmtDate, vnd, toIsoDate } from './util.js';
 
 // Các ô thông tin đặt được lên mẫu. x, y tính theo % chiều rộng/cao; size theo % chiều rộng; w (ảnh) theo % chiều rộng.
 export const FIELD_KEYS = {
@@ -26,9 +26,9 @@ export const DEFAULT_TEMPLATE = {
 };
 
 export const certSecret = env => env.CERT_SECRET || env.ADMIN_SESSION_SECRET || '';
-export const certSig = async (env, code) => (await hmac(certSecret(env), 'gcn:' + String(code).toUpperCase())).slice(0, 12).toUpperCase();
+export const certSig = async (env, code) => (await hmac(certSecret(env), 'gcn:' + normCode(code))).slice(0, 12).toUpperCase();
 
-export const verifyPath = c => `/xac-thuc/${encodeURIComponent(c.code)}?s=${c.sig}`;
+export const verifyPath = c => `/xac-thuc/${codePath(c.code)}?s=${c.sig}`;
 export const verifyUrl = (settings, c) => String(settings.site.url || '').replace(/\/$/, '') + verifyPath(c);
 
 const cleanPrefix = p => String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) || 'FTS';
@@ -80,9 +80,9 @@ export async function templateOf(env, cert) {
 export async function issueCertificate(env, settings, data) {
   const campaign = data.campaign || null;
   const issued = toIsoDate(data.issued_date) || vnToday();
-  let code = String(data.code || '').trim().toUpperCase();
+  let code = normCode(data.code);
   if (code) {
-    if (!/^[A-Z0-9][A-Z0-9_./-]{1,40}$/.test(code)) throw new Error('Mã giấy chỉ gồm chữ không dấu, số và các ký tự - _ . /');
+    if (!validCode(code)) throw new Error('Mã giấy tối đa 80 ký tự, gồm chữ, số, khoảng trắng và các ký tự - _ . / ( ) &');
     if (await env.DB.prepare('SELECT 1 x FROM certificates WHERE code=?').bind(code).first()) throw new Error('Mã giấy ' + code + ' đã tồn tại.');
   } else {
     code = await newCode(env, campaign?.cert_prefix || settings.cert.prefix, issued);

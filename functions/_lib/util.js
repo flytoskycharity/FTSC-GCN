@@ -98,4 +98,10 @@ export function amountOf(v) {
   return { amount: null, text: t };
 }
 
+// Mã giấy: giữ nguyên chữ có dấu (Đ, Ấ…), số, khoảng trắng và - _ . / ( ) &; viết hoa, gộp khoảng trắng.
+export const normCode = s => String(s ?? '').normalize('NFC').trim().toLocaleUpperCase('vi').replace(/\s+/g, ' ').replace(/\s*([/()-])\s*/g, '$1');
+export const validCode = c => /^[\p{L}\p{N}][\p{L}\p{N} _.\/()&-]{0,79}$/u.test(c);
+// Đường dẫn xác thực: mã có thể chứa "/", mã hóa từng đoạn.
+export const codePath = c => String(c).split('/').map(encodeURIComponent).join('/');
+
 export const clip = (v, n) => String(v ?? '').trim().slice(0, n);

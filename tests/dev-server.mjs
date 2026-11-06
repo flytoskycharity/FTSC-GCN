@@ -37,7 +37,7 @@ const routes = [];
     const name = f.replace(/\.js$/, ''), seg = name === 'index' ? '' : '/' + name;
     const pattern = (base + seg) || '/';
     const params = [];
-    const re = pattern.replace(/\[\[(\w+)\]\]/g, (_, n) => { params.push([n, true]); return '(.+)'; }).replace(/\[(\w+)\]/g, (_, n) => { params.push([n, false]); return '([^/]+)'; });
+    const re = pattern.replace(/\/\[\[(\w+)\]\]/g, (_, n) => { params.push([n, true]); return '(?:/(.+))?'; }).replace(/\[(\w+)\]/g, (_, n) => { params.push([n, false]); return '([^/]+)'; });
     routes.push({ re: new RegExp('^' + re + '/?$'), file: p, params, dyn: params.length });
   }
 })(fnDir, '');
@@ -49,10 +49,10 @@ const types = { '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg
 http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost:' + port);
-    const p = decodeURIComponent(url.pathname);
-    const rd = redirects.find(r => r[0] === p);
+    const p = url.pathname, pd = decodeURIComponent(p);
+    const rd = redirects.find(r => r[0] === pd);
     if (rd) { res.writeHead(Number(rd[2] || 302), { Location: rd[1] }); return res.end(); }
-    let st = path.join(pub, p);
+    let st = path.join(pub, pd);
     if (fs.existsSync(st) && fs.statSync(st).isDirectory()) st = path.join(st, 'index.html');
     if (p !== '/' && fs.existsSync(st) && fs.statSync(st).isFile()) {
       res.writeHead(200, { 'Content-Type': types[path.extname(st)] || 'application/octet-stream' });
@@ -65,7 +65,7 @@ http.createServer(async (req, res) => {
       const chunks = [];
       for await (const c of req) chunks.push(c);
       const request = new Request(url, { method: req.method, headers: req.headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(chunks), duplex: 'half' });
-      const params = Object.fromEntries(r.params.map(([n, multi], i) => [n, multi ? m[i + 1].split('/') : m[i + 1]]));
+      const params = Object.fromEntries(r.params.map(([n, multi], i) => [n, multi ? (m[i + 1] ? m[i + 1].split('/') : []) : m[i + 1]]));
       const h = mod.onRequest || mod['onRequest' + req.method[0] + req.method.slice(1).toLowerCase()];
       if (!h) { res.writeHead(405); return res.end(); }
       const out = await h({ request, env, params, waitUntil: () => {} });

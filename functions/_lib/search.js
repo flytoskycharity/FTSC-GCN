@@ -1,13 +1,14 @@
-import { normPhone, nameKey, maskPhone } from './util.js';
+import { normPhone, nameKey, maskPhone, normCode, validCode } from './util.js';
 import { verifyPath } from './certs.js';
 
 // Tìm trong dữ liệu của cổng: theo mã giấy, số điện thoại, hoặc họ tên (không dấu, khớp một phần).
 export async function searchLocal(env, settings, q) {
-  const code = q.toUpperCase().replace(/\s+/g, ''), phone = normPhone(q), key = nameKey(q);
+  const code = normCode(q), phone = normPhone(q), key = nameKey(q);
   const base = 'SELECT * FROM certificates WHERE ';
   const seen = new Map();
   const add = rows => (rows.results || []).forEach(r => seen.set(r.id, r));
-  if (/^[A-Z0-9][A-Z0-9_./-]{1,40}$/.test(code)) add(await env.DB.prepare(base + 'code=?').bind(code).all());
+  // Mã trùng ở hệ thống cũ được tách thành MÃ, MÃ-2, MÃ-3…: tìm cả nhóm.
+  if (validCode(code) && code.length >= 2) add(await env.DB.prepare(base + "(code=? OR code LIKE ? ESCAPE '\\') LIMIT 50").bind(code, code.replace(/[%_\\]/g, '\\$&') + '-%').all());
   if (phone) add(await env.DB.prepare(base + 'phone=? ORDER BY id DESC LIMIT 100').bind(phone).all());
   else if (key.length >= 3 && !/\d{5}/.test(key)) add(await env.DB.prepare(base + "name_key LIKE ? ORDER BY id DESC LIMIT 100").bind('%' + key + '%').all());
   return [...seen.values()].map(c => ({

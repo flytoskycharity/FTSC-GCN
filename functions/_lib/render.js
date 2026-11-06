@@ -1,5 +1,5 @@
 // Dựng HTML phía máy chủ cho các trang công khai. Giao diện đồng bộ với website Tủ sách Bồ Câu Trắng (Khuyendoc).
-import { esc, fmtDate, fmtDateTime, vnd } from './util.js';
+import { esc, fmtDate, fmtDateTime, vnd, codePath } from './util.js';
 import { certValues, IMAGE_KEYS } from './certs.js';
 import { qrSvg } from './qr.js';
 
@@ -142,7 +142,7 @@ export function renderVerify(x, c, state, tpl) {
     const data = {
       tpl: { background: tpl.background, width: tpl.width, height: tpl.height, fields: (tpl.fields || []).filter(f => f.visible !== false) },
       values: v,
-      images: { qr: 'data:image/svg+xml;utf8,' + encodeURIComponent(qrSvg(x.origin + `/xac-thuc/${encodeURIComponent(c.code)}?s=${c.sig}`, { dark: '#000', level: 'M', border: 2 })), signature: s.cert.signature || '', stamp: s.cert.stamp || '' },
+      images: { qr: 'data:image/svg+xml;utf8,' + encodeURIComponent(qrSvg(x.origin + `/xac-thuc/${codePath(c.code)}?s=${c.sig}`, { dark: '#000', level: 'M', border: 2 })), signature: s.cert.signature || '', stamp: s.cert.stamp || '' },
       fonts: [s.theme.fontHeading, s.theme.fontBody], file: c.code,
     };
     fig = `<div class="cv-fig"><div class="cv-img"><canvas id="certCanvas" aria-label="Giấy chứng nhận ${esc(c.code)}"></canvas><p class="cv-wait">Đang dựng giấy chứng nhận…</p></div><div class="btns cv-btns"><button class="btn btn-primary btn-sm" id="dlPdf" type="button" disabled>Tải PDF</button><button class="btn btn-ghost btn-sm" id="dlPng" type="button" disabled>Tải ảnh</button>${c.file_url ? `<a class="btn btn-ghost btn-sm" href="${esc(c.file_url)}" target="_blank" rel="noopener">Xem bản gốc ↗</a>` : ''}</div><script type="application/json" id="certData">${JSON.stringify(data).replace(/</g, '\\u003c')}</script></div>`;
