@@ -104,7 +104,7 @@ export async function payDonation(env, settings, donation, campaign, amount, txI
   await env.DB.prepare("UPDATE donations SET status='paid', paid_amount=?, paid_at=?, tx_id=? WHERE id=?").bind(amount, iso, txId || '', donation.id).run();
   if (donation.cert_id) return donation.cert_id;
   const cert = await issueCertificate(env, settings, {
-    campaign, name: donation.name, phone: donation.phone, org: donation.org, amount, issued_date: iso,
+    campaign, name: donation.name, phone: donation.phone, org: [...new Set([donation.position, donation.org].map(v => String(v || '').trim()).filter(Boolean))].join(', '), amount, issued_date: iso,
     source: 'auto', donation_id: donation.id, created_by: 'hệ thống',
   });
   await env.DB.prepare('UPDATE donations SET cert_id=? WHERE id=?').bind(cert.id, donation.id).run();

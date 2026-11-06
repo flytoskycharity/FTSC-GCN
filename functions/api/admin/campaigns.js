@@ -1,5 +1,5 @@
 import { adminApi, log } from '../../_lib/auth.js';
-import { raisedOf } from '../../_lib/db.js';
+import { raisedOf, FUND_SLUG } from '../../_lib/db.js';
 import { json, readJson, slugify, clip, money } from '../../_lib/util.js';
 
 const STATUS = ['draft', 'open', 'closed', 'hidden'];
@@ -17,6 +17,8 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     const id = Number(b.id) || 0;
     const n = await env.DB.prepare('SELECT COUNT(*) n FROM certificates WHERE campaign_id=?').bind(id).first();
     if (n.n) return json({ error: `Dự án đã có ${n.n} giấy chứng nhận, không xóa được. Hãy chuyển sang "Ẩn".` }, 400);
+    const f = await env.DB.prepare('SELECT slug FROM campaigns WHERE id=?').bind(id).first();
+    if (f?.slug === FUND_SLUG) return json({ error: 'Không xóa Quỹ chung. Muốn tạm dừng nhận ủng hộ, hãy bỏ chọn "Nhận ủng hộ trực tuyến".' }, 400);
     await env.DB.batch([env.DB.prepare('DELETE FROM templates WHERE campaign_id=?').bind(id), env.DB.prepare('DELETE FROM campaigns WHERE id=?').bind(id)]);
     await log(env, me, 'xóa dự án #' + id);
     return json({ ok: true });
@@ -26,7 +28,8 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
   const title = clip(r.title, 200);
   if (!title) return json({ error: 'Vui lòng nhập tên dự án.' }, 400);
   const id = Number(r.id) || 0;
-  let slug = slugify(r.slug || title);
+  const cur = id ? await env.DB.prepare('SELECT slug FROM campaigns WHERE id=?').bind(id).first() : null;
+  let slug = cur?.slug === FUND_SLUG ? FUND_SLUG : slugify(r.slug || title);
   const clash = await env.DB.prepare('SELECT id FROM campaigns WHERE slug=? AND id<>?').bind(slug, id).first();
   if (clash) slug = slug.slice(0, 70) + '-' + Date.now().toString(36).slice(-4);
   const memo = clip(r.memo_prefix, 40).toUpperCase();
@@ -36,13 +39,13 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
   }
   const v = [slug, title, r.kind === 'program' ? 'program' : 'money', STATUS.includes(r.status) ? r.status : 'draft', dt(r.start_at), dt(r.end_at), memo,
     money(r.goal), Number(String(r.raised_offset ?? 0).replace(/[^\d-]/g, '')) || 0, clip(r.summary, 400), clip(r.description, 20000), mediaUrl(r.cover),
-    clip(r.cert_prefix, 10).toUpperCase().replace(/[^A-Z0-9]/g, ''), r.accept_donations === false || r.accept_donations === 0 ? 0 : 1, Number(r.sort) || 0];
+    clip(r.cert_prefix, 10).toUpperCase().replace(/[^A-Z0-9]/g, ''), r.accept_donations === false || r.accept_donations === 0 ? 0 : 1, Number(r.sort) || 0, clip(r.benefits, 3000)];
   if (id) {
-    await env.DB.prepare(`UPDATE campaigns SET slug=?,title=?,kind=?,status=?,start_at=?,end_at=?,memo_prefix=?,goal=?,raised_offset=?,summary=?,description=?,cover=?,cert_prefix=?,accept_donations=?,sort=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(...v, id).run();
+    await env.DB.prepare(`UPDATE campaigns SET slug=?,title=?,kind=?,status=?,start_at=?,end_at=?,memo_prefix=?,goal=?,raised_offset=?,summary=?,description=?,cover=?,cert_prefix=?,accept_donations=?,sort=?,benefits=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(...v, id).run();
     await log(env, me, 'sửa dự án ' + title);
     return json({ ok: true, id });
   }
-  const res = await env.DB.prepare(`INSERT INTO campaigns(slug,title,kind,status,start_at,end_at,memo_prefix,goal,raised_offset,summary,description,cover,cert_prefix,accept_donations,sort) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(...v).run();
+  const res = await env.DB.prepare(`INSERT INTO campaigns(slug,title,kind,status,start_at,end_at,memo_prefix,goal,raised_offset,summary,description,cover,cert_prefix,accept_donations,sort,benefits) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(...v).run();
   await log(env, me, 'tạo dự án ' + title);
   return json({ ok: true, id: res.meta.last_row_id });
 });

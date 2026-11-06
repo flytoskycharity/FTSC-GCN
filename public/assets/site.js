@@ -53,12 +53,11 @@
     const list = tab === 'all' ? all : all.filter(r => r.source === tab);
     const pages = Math.max(1, Math.ceil(list.length / PER));
     page = Math.min(page, pages);
-    const down = sources.filter(s => !s.ok);
     if (!all.length) {
-      out.innerHTML = `<div class="card center"><h3>Không tìm thấy giấy phù hợp</h3><p>Hãy thử số điện thoại khác cách viết, họ tên đầy đủ có dấu hoặc mã giấy chính xác. Giấy mới cấp có thể cần vài phút để cập nhật.</p></div>${down.length ? `<p class="note">Chưa kết nối được: ${down.map(s => esc(s.label)).join(', ')}. Vui lòng thử lại sau.</p>` : ''}`;
+      out.innerHTML = `<div class="card center"><h3>Không tìm thấy giấy phù hợp</h3><p>Hãy thử số điện thoại khác cách viết, họ tên đầy đủ có dấu hoặc mã giấy chính xác. Giấy mới cấp có thể cần vài phút để cập nhật.</p></div>`;
       return;
     }
-    out.innerHTML = `<div class="lk-sum"><p>Tìm thấy ${all.length} giấy${list.length !== all.length ? ` · đang xem ${list.length}` : ''}</p></div>${groups.length > 2 ? `<div class="lk-tabs" role="tablist">${groups.map(g => `<button type="button" role="tab" data-tab="${esc(g[0])}" class="${g[0] === tab ? 'on' : ''}" aria-selected="${g[0] === tab}">${esc(g[1])} (${g[2]})</button>`).join('')}</div>` : ''}<div class="lk-list">${list.slice((page - 1) * PER, page * PER).map(card).join('')}</div>${pages > 1 ? `<nav class="pager" aria-label="Trang kết quả">${Array.from({ length: pages }, (_, i) => `<button type="button" data-page="${i + 1}" class="${i + 1 === page ? 'on' : ''}">${i + 1}</button>`).join('')}</nav>` : ''}${down.length ? `<p class="note">Chưa kết nối được: ${down.map(s => esc(s.label)).join(', ')}. Kết quả từ nguồn này có thể còn thiếu.</p>` : ''}`;
+    out.innerHTML = `<div class="lk-sum"><p>Tìm thấy ${all.length} giấy${list.length !== all.length ? ` · đang xem ${list.length}` : ''}</p></div>${groups.length > 2 ? `<div class="lk-tabs" role="tablist">${groups.map(g => `<button type="button" role="tab" data-tab="${esc(g[0])}" class="${g[0] === tab ? 'on' : ''}" aria-selected="${g[0] === tab}">${esc(g[1])} (${g[2]})</button>`).join('')}</div>` : ''}<div class="lk-list">${list.slice((page - 1) * PER, page * PER).map(card).join('')}</div>${pages > 1 ? `<nav class="pager" aria-label="Trang kết quả">${Array.from({ length: pages }, (_, i) => `<button type="button" data-page="${i + 1}" class="${i + 1 === page ? 'on' : ''}">${i + 1}</button>`).join('')}</nav>` : ''}`;
   }
   out.addEventListener('click', e => {
     const t = e.target.closest('[data-tab]'), p = e.target.closest('[data-page]');
@@ -85,5 +84,5 @@
     run(q);
   });
   if (input.value.trim().length >= 2) run(input.value.trim());
-  else out.innerHTML = '<p class="empty">Nhập thông tin ở trên để bắt đầu tra cứu.</p>';
+  else if (!document.getElementById('lk')?.hidden) out.innerHTML = '<p class="empty">Nhập thông tin ở trên để bắt đầu tra cứu.</p>';
 })();

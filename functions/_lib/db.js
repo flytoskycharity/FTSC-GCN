@@ -17,12 +17,27 @@ const TABLES = [
   `CREATE INDEX IF NOT EXISTS donations_phone ON donations(phone, status)`,
   `CREATE TABLE IF NOT EXISTS bank_tx (id TEXT PRIMARY KEY, tx_date TEXT NOT NULL DEFAULT '', amount INTEGER NOT NULL DEFAULT 0, description TEXT NOT NULL DEFAULT '', campaign_id INTEGER NOT NULL DEFAULT 0, donation_id INTEGER NOT NULL DEFAULT 0, cert_id INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'other', source TEXT NOT NULL DEFAULT 'auto', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE INDEX IF NOT EXISTS bank_tx_campaign ON bank_tx(campaign_id, status)`,
+  `CREATE TABLE IF NOT EXISTS verify_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, verdict TEXT NOT NULL DEFAULT '', code TEXT NOT NULL DEFAULT '', qr TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '', image TEXT NOT NULL DEFAULT '', ip TEXT NOT NULL DEFAULT '', ua TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'new', note TEXT NOT NULL DEFAULT '', checked_by TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+  `CREATE INDEX IF NOT EXISTS verify_logs_status ON verify_logs(status, id)`,
 ];
+// Cột bổ sung cho bảng đã tạo ở bản trước (D1 không có ADD COLUMN IF NOT EXISTS nên bỏ qua lỗi cột đã có).
+const COLUMNS = [
+  ['campaigns', "benefits TEXT NOT NULL DEFAULT ''"],
+  ['donations', "donor_type TEXT NOT NULL DEFAULT ''"], ['donations', "position TEXT NOT NULL DEFAULT ''"],
+  ['donations', "tax_code TEXT NOT NULL DEFAULT ''"], ['donations', "address TEXT NOT NULL DEFAULT ''"],
+  ['donations', "wants_confirm INTEGER NOT NULL DEFAULT 0"], ['donations', "confirm_file TEXT NOT NULL DEFAULT ''"],
+  ['donations', "message TEXT NOT NULL DEFAULT ''"], ['donations', "reported_at TEXT NOT NULL DEFAULT ''"],
+];
+export const FUND_SLUG = 'quy-chung';
 
 export async function initializeDatabase(env) {
   if (!env.DB) throw new Error('Chưa gắn cơ sở dữ liệu D1 (binding DB)');
   if (ready) return env.DB;
   await env.DB.batch(TABLES.map(sql => env.DB.prepare(sql)));
+  for (const [t, c] of COLUMNS) { try { await env.DB.prepare(`ALTER TABLE ${t} ADD COLUMN ${c}`).run(); } catch { /* đã có */ } }
+  // Quỹ chung các dự án: một "dự án" đặc biệt để nhận ủng hộ không chỉ định; sửa được trong admin.
+  await env.DB.prepare(`INSERT OR IGNORE INTO campaigns(slug,title,kind,status,memo_prefix,summary,sort,accept_donations) VALUES(?,?,?,?,?,?,?,1)`)
+    .bind(FUND_SLUG, 'Quỹ chung các dự án Fly To Sky', 'money', 'open', 'FTSQUY', 'Ủng hộ không chỉ định dự án. Fly To Sky phân bổ cho các dự án, hoàn cảnh cần hỗ trợ nhất và công khai qua sao kê.', -1000).run();
   ready = true;
   return env.DB;
 }
@@ -45,7 +60,17 @@ export async function loadSettings(env) {
       if (row) saved = JSON.parse(row.payload);
     } catch { /* dùng mặc định */ }
   }
-  return fill(saved, JSON.parse(JSON.stringify(defaults)));
+  return upgrade(fill(saved, JSON.parse(JSON.stringify(defaults))), !!saved);
+}
+
+// Nâng cấp cài đặt đã lưu từ bản trước, không đè nội dung admin tự sửa.
+function upgrade(s, wasSaved) {
+  if (!wasSaved) return s;
+  // Bản đầu dùng màu cam của Khuyendoc: chuyển về màu xanh Fly To Sky nếu admin chưa đổi màu.
+  if (String(s.theme.accent).toLowerCase() === '#f38234') s.theme = { ...defaults.theme, fontHeading: s.theme.fontHeading, fontBody: s.theme.fontBody };
+  const hcm = defaults.contact.offices.find(o => o.label.includes('TP.HCM'));
+  if (hcm && Array.isArray(s.contact.offices) && !s.contact.offices.some(o => /H[ồo] Ch[íi] Minh|TP\.?HCM/i.test(o.label + o.value))) s.contact.offices.push({ ...hcm });
+  return s;
 }
 
 export async function saveSettings(env, value) {

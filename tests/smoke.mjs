@@ -10,7 +10,8 @@ const call = async (path, body) => {
 };
 const j = async (p, b) => { const r = await call(p, b); const d = await r.json(); assert.ok(r.ok, p + ': ' + (d.error || r.status)); return d; };
 
-for (const p of ['/', '/tra-cuu', '/du-an', '/sao-ke', '/xac-thuc', '/admin/']) assert.equal((await call(p)).status, 200, p);
+for (const p of ['/', '/tra-cuu', '/tra-cuu?tab=kiem-tra', '/du-an', '/ung-ho', '/sao-ke', '/admin/']) assert.equal((await call(p)).status, 200, p);
+assert.equal((await call('/xac-thuc')).status, 302);
 assert.equal((await call('/tracuu')).status, 301);
 assert.equal((await call('/api/admin/stats')).status, 401, 'admin API phải yêu cầu đăng nhập');
 
@@ -32,9 +33,17 @@ const ok = await (await call(cert.url)).text();
 assert.match(ok, /Giấy chứng nhận hợp lệ/);
 const bad = await call(cert.url.replace(/s=\w+/, 's=000000000000'));
 assert.equal(bad.status, 404, 'sai mã xác thực phải báo không hợp lệ');
+const logs = await j('/api/admin/verify-logs?status=new');
+assert.ok(logs.items.some(l => l.code === cert.code && l.verdict === 'invalid'), 'ghi nhật ký xác thực sai');
+const chk = await j('/api/verify?qr=' + encodeURIComponent(B + cert.url));
+assert.equal(chk.state, 'valid'); assert.ok(chk.render.rows.length >= 1 && chk.render.tpl.width, 'trả dữ liệu dựng giấy gốc');
+await j('/api/verify', { verdict: 'mismatch', code: cert.code, detail: 'thử' });
+// Quỹ chung luôn có sẵn ở trang Quyên góp
+assert.match(await (await call('/ung-ho')).text(), /Quỹ chung các dự án/);
 
 // Ủng hộ qua form + dán sao kê → cấp giấy tự động theo mẫu mức tiền.
-const don = await j('/api/donate', { campaign: id, name: 'Nhà Hảo Tâm', phone: '0902000222', amount: 600000 });
+const don = await j('/api/donate', { campaign: id, donorType: 'ca-nhan', name: 'Nhà Hảo Tâm', phone: '0902000222', amount: 600000, wantsConfirm: true });
+assert.ok(don.wantsConfirm);
 assert.equal(don.memo, memo + ' 0902000222');
 const tx = await j('/api/admin/transactions', { action: 'paste', text: `06/11/2026 | 600.000 | ${memo} 0902 000 222 ung ho` });
 assert.equal(tx.matched, 1);
@@ -48,4 +57,6 @@ assert.ok(t2.id);
 // Thu hồi
 await j('/api/admin/certificates', { action: 'revoke', id: list.items[0].id, reason: 'Thử thu hồi' });
 assert.match(await (await call(st.cert.url)).text(), /đã bị thu hồi/);
+const found = await j('/api/lookup?q=0902000222');
+assert.ok(found.results[0].documents.some(d => d.label === 'Giấy xác nhận tài trợ'), 'hiện yêu cầu Giấy xác nhận tài trợ');
 console.log('OK – smoke test đạt');

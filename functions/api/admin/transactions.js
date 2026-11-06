@@ -57,6 +57,14 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     await env.DB.prepare("UPDATE donations SET status='cancelled' WHERE id=? AND status='pending'").bind(Number(b.donation) || 0).run();
     return json({ ok: true });
   }
+  if (b.action === 'confirm') {
+    // Gắn Giấy xác nhận tài trợ (PDF/ảnh đã tải lên) cho lượt ủng hộ; người ủng hộ tải được khi tra cứu.
+    const file = String(b.file || '').trim();
+    if (file && !/^\/media\/confirm\/[a-z0-9/_.-]+$/i.test(file) && !/^https:\/\//.test(file)) return json({ error: 'Đường dẫn tệp không hợp lệ.' }, 400);
+    await env.DB.prepare('UPDATE donations SET confirm_file=? WHERE id=?').bind(file, Number(b.donation) || 0).run();
+    await log(env, me, 'cập nhật Giấy xác nhận tài trợ cho lượt ủng hộ #' + b.donation);
+    return json({ ok: true });
+  }
   if (b.action === 'resetSync') { await setState(env, 'bank_sync', {}); return json({ ok: true }); }
   return json({ error: 'Thao tác không hợp lệ' }, 400);
 });

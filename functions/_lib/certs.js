@@ -11,17 +11,17 @@ export const IMAGE_KEYS = ['qr', 'signature', 'stamp'];
 export const DEFAULT_TEMPLATE = {
   id: 0, campaign_id: 0, name: 'Mẫu mặc định', background: '/brand/cert-default.svg', width: 1600, height: 1131, min_amount: 0, enabled: 1,
   fields: [
-    { key: 'name', x: 50, y: 44, size: 4.2, color: '#006379', align: 'center', bold: true, font: 'serif' },
-    { key: 'org', x: 50, y: 51.5, size: 1.8, color: '#14333c', align: 'center', bold: true },
-    { key: 'amount', x: 50, y: 59.5, size: 2.4, color: '#d9661b', align: 'center', bold: true },
-    { key: 'project', x: 50, y: 65.5, size: 1.7, color: '#14333c', align: 'center', bold: true },
-    { key: 'code', x: 10, y: 81, size: 1.3, color: '#14333c', align: 'left', bold: true, prefix: 'Mã GCN: ' },
-    { key: 'date', x: 10, y: 84.5, size: 1.3, color: '#14333c', align: 'left', bold: true, prefix: 'Ngày cấp: ' },
-    { key: 'phone', x: 10, y: 88, size: 1.3, color: '#14333c', align: 'left', bold: true, prefix: 'SĐT: ' },
+    { key: 'name', x: 50, y: 44, size: 4.2, color: '#05228b', align: 'center', bold: true, font: 'serif' },
+    { key: 'org', x: 50, y: 51.5, size: 1.8, color: '#0e1b3d', align: 'center', bold: true },
+    { key: 'amount', x: 50, y: 59.5, size: 2.4, color: '#05228b', align: 'center', bold: true },
+    { key: 'project', x: 50, y: 65.5, size: 1.7, color: '#0e1b3d', align: 'center', bold: true },
+    { key: 'code', x: 10, y: 81, size: 1.3, color: '#0e1b3d', align: 'left', bold: true, prefix: 'Mã GCN: ' },
+    { key: 'date', x: 10, y: 84.5, size: 1.3, color: '#0e1b3d', align: 'left', bold: true, prefix: 'Ngày cấp: ' },
+    { key: 'phone', x: 10, y: 88, size: 1.3, color: '#0e1b3d', align: 'left', bold: true, prefix: 'SĐT: ' },
     { key: 'qr', x: 43, y: 76, w: 10 },
     { key: 'stamp', x: 66, y: 74, w: 11 },
     { key: 'signature', x: 74, y: 77, w: 13 },
-    { key: 'signer', x: 76, y: 90, size: 1.5, color: '#006379', align: 'center', bold: true },
+    { key: 'signer', x: 76, y: 90, size: 1.5, color: '#05228b', align: 'center', bold: true },
   ],
 };
 

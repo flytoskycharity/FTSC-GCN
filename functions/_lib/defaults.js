@@ -11,8 +11,8 @@ export default {
     url: 'https://certificates.flytoskycharity.vn',
   },
   theme: {
-    primary: '#006379', primaryDark: '#00333f', accent: '#f38234',
-    paper: '#faf6ee', tint: '#e8f3f3', ink: '#14333c',
+    primary: '#05228b', primaryDark: '#031552', accent: '#1565d8',
+    paper: '#f4f7fd', tint: '#e7edfb', ink: '#0e1b3d',
     fontHeading: 'Source Serif 4', fontBody: 'Manrope',
   },
   contact: {
@@ -29,6 +29,7 @@ export default {
     offices: [
       { label: 'Văn phòng Tổng', value: '145/14/4 Thống Nhất, tổ 4, phường Diên Hồng, tỉnh Gia Lai, Việt Nam' },
       { label: 'Văn phòng đại diện tại Hà Nội', value: 'Tầng 5, số 124 ngõ 34 Hoàng Cầu, phường Ô Chợ Dừa, TP. Hà Nội, Việt Nam' },
+      { label: 'Văn phòng tại TP.HCM', value: 'Số 129 Điện Biên Phủ, phường Gia Định, TP. Hồ Chí Minh, Việt Nam' },
     ],
     legalName: 'Công ty TNHH Doanh nghiệp xã hội từ thiện và hỗ trợ phát triển cộng đồng Fly To Sky',
     taxNote: 'Mã số doanh nghiệp 5901213612 do Sở Kế hoạch và Đầu tư tỉnh Gia Lai cấp',
@@ -52,7 +53,22 @@ export default {
     amounts: [50000, 100000, 200000, 500000, 1000000, 2000000],
     minAmount: 10000,
     anonymousName: 'Nhà hảo tâm',
-    note: 'Sau khi chuyển khoản đúng cú pháp, hệ thống tự đối soát sao kê và cấp Giấy chứng nhận điện tử. Bạn tra cứu được ngay trên cổng này.',
+    title: 'Quyên góp cùng Fly To Sky',
+    lead: 'Chọn Quỹ chung các dự án hoặc một dự án đang kêu gọi, nhập thông tin và quét mã QR để chuyển khoản. Giấy chứng nhận được cấp tự động khi tiền về.',
+    note: 'Sau khi chuyển khoản đúng nội dung, hệ thống tự đối soát sao kê và cấp Giấy chứng nhận điện tử. Bạn tra cứu được ngay trên cổng này.',
+    donorTypes: [
+      { id: 'ca-nhan', label: 'Cá nhân' }, { id: 'to-chuc', label: 'Tổ chức' }, { id: 'doanh-nghiep', label: 'Doanh nghiệp' },
+      { id: 'nhom', label: 'Nhóm cá nhân' }, { id: 'fandom', label: 'Fandom / Cộng đồng người hâm mộ' },
+    ],
+    benefits: [
+      '0 | Giấy chứng nhận ủng hộ điện tử, có mã QR xác thực, tra cứu được ngay trên cổng',
+      '0 | Theo dõi khoản ủng hộ trên sao kê công khai',
+      '500000 | Có quyền yêu cầu Giấy xác nhận tài trợ theo quy định Bộ Tài chính (cấp sau 7–10 ngày)',
+    ],
+    confirmMin: 500000,
+    confirmLabel: 'Tôi yêu cầu Giấy xác nhận tài trợ theo quy định Bộ Tài chính',
+    businessNote: 'Doanh nghiệp, tổ chức cần chuyển khoản từ tài khoản của đơn vị sang tài khoản của Công ty để được cấp Giấy xác nhận tài trợ.',
+    thanks: 'Cảm ơn bạn đã đồng hành cùng Fly To Sky!',
   },
   cert: {
     prefix: 'FTS',
