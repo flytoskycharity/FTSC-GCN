@@ -1,6 +1,6 @@
 import { adminApi, log } from '../../_lib/auth.js';
 import { json, readJson, clip, money } from '../../_lib/util.js';
-import { DEFAULT_TEMPLATE, FIELD_KEYS, IMAGE_KEYS, parseTemplate } from '../../_lib/certs.js';
+import { DEFAULT_TEMPLATE, FIELD_KEYS, IMAGE_KEYS, parseTemplate, staleImages } from '../../_lib/certs.js';
 
 const num = (v, min, max, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n * 100) / 100)) : d; };
 const color = v => /^#[0-9a-f]{6}$/i.test(String(v || '')) ? v : '#14333c';
@@ -42,6 +42,7 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     JSON.stringify(cleanFields(r.fields)), money(r.min_amount), r.enabled === false || r.enabled === 0 ? 0 : 1];
   if (id) {
     await env.DB.prepare('UPDATE templates SET campaign_id=?,name=?,background=?,width=?,height=?,fields=?,min_amount=?,enabled=?,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(...v, id).run();
+    await staleImages(env, 'template_id=?', [id]); // giấy dùng mẫu này được ghép lại ảnh
     await log(env, me, 'sửa mẫu ' + v[1]);
     return json({ ok: true, id });
   }

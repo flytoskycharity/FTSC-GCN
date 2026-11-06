@@ -204,9 +204,15 @@
         await addPdf();
         return;
       }
+      if (!R.image) {
+        out.innerHTML = `<div class="ver ver-unsigned">${head('unsure', 'Mã QR hợp lệ nhưng ảnh giấy gốc chưa sẵn sàng để so tự động. Hãy đối chiếu từng thông tin với trang xác thực.')}<p class="mt"><a class="btn btn-primary btn-sm" href="${esc(j.url)}" target="_blank" rel="noopener">Mở trang xác thực</a></p></div>`;
+        report(t, 'unsure', { code: j.code, detail: 'Chưa có ảnh giấy gốc để so' });
+        await addPdf();
+        return;
+      }
       out.innerHTML = '<div class="lk-wait"><span class="spin"></span>Đang so từng dòng thông tin với giấy gốc…</div>';
-      const oc = document.createElement('canvas');
-      await window.FTSCert.draw(oc, R);
+      // Giấy gốc là một ảnh đã ghép sẵn trên hệ thống (nền và chữ không tách rời).
+      const oc = await new Promise((ok, no) => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext('2d').drawImage(im, 0, 0); ok(c); }; im.onerror = () => no(new Error('Không tải được ảnh giấy gốc')); im.src = R.image; });
       const res = await compare(t, oc, R.rows);
       const show = res.verdict === 'match' || res.verdict === 'mismatch', none = '<b></b>';
       const rows = res.rows.map((r, i) => {

@@ -137,7 +137,7 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     let code = x.code;
     if (code && have.has(code)) {
       if (!overwrite) { skipped++; continue; }
-      stmts.push(env.DB.prepare('UPDATE certificates SET name=?,name_key=?,phone=?,org=?,amount=?,amount_text=?,issued_date=?,campaign_id=?,campaign_name=?,file_url=?,updated_at=CURRENT_TIMESTAMP WHERE code=?')
+      stmts.push(env.DB.prepare('UPDATE certificates SET img_ok=0,name=?,name_key=?,phone=?,org=?,amount=?,amount_text=?,issued_date=?,campaign_id=?,campaign_name=?,file_url=?,updated_at=CURRENT_TIMESTAMP WHERE code=?')
         .bind(x.name, nameKey(x.name), x.phone, x.org, x.amount, x.amount_text, x.issued_date, camp?.id || 0, x.campaign, x.file_url, code));
       continue;
     }

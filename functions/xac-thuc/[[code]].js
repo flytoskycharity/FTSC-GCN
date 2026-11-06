@@ -27,5 +27,6 @@ export const onRequestGet = pageRoute(p => '/xac-thuc' + (segs(p).length ? '/' +
     await logVerify(env, request, { kind: 'url', verdict: state, code, qr: u.pathname + u.search, detail: c ? (state === 'revoked' ? 'Mở giấy đã thu hồi' : 'Mã có thật nhưng mã xác thực sai') : 'Mã không có trong hệ thống' }).catch(() => {});
   }
   const tpl = c && !c.doc_file && (state === 'valid' || state === 'unsigned') && (!c.file_url || c.template_id) ? await templateOf(env, c) : null;
+  if (c && state === 'valid') c._pendingFix = !!(await env.DB.prepare("SELECT id FROM cert_requests WHERE cert_id=? AND status='pending' LIMIT 1").bind(c.id).first());
   return html(renderVerify(x, state === 'invalid' ? null : c, state, tpl), state === 'invalid' ? 404 : 200, { 'X-Robots-Tag': 'noindex' });
 });

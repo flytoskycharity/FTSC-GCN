@@ -1,5 +1,5 @@
 import { normPhone, nameKey, maskPhone, normCode, validCode } from './util.js';
-import { verifyPath } from './certs.js';
+import { verifyPath, historyOf } from './certs.js';
 import { docKindLabel, DOC_TYPES } from './docs.js';
 
 // Tìm trong dữ liệu của cổng: theo mã giấy, số điện thoại, hoặc họ tên (không dấu, khớp một phần).
@@ -17,6 +17,7 @@ export async function searchLocal(env, settings, q) {
     code: c.code, name: c.name, org: c.org, phone: maskPhone(c.phone), project: c.campaign_name,
     amount: c.amount > 0 ? c.amount : null, amountText: c.amount > 0 ? '' : (c.amount_text || settings.cert.programText),
     date: c.issued_date, status: c.status === 'revoked' ? 'revoked' : 'valid', url: verifyPath(c),
+    adjusted: historyOf(c).map(h => ({ at: h.at, changes: h.changes })),
     documents: [
       ...(c.file_url ? [{ label: 'Bản gốc', url: c.file_url }] : []),
       ...(c.doc_file ? [{ label: docKindLabel(c) + ' (' + (c.doc_type === 'digital' ? 'PDF ký số' : 'bản scan ký tay') + ')', url: verifyPath(c) }] : []),

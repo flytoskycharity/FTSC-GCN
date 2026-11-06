@@ -71,7 +71,7 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     const changed = keys.some(k => String(old[k] ?? '') !== String(next[k] ?? ''));
     const hist = JSON.parse(cur.history || '[]');
     if (changed) hist.push({ at: vnToday(), by: me.username, old, reason: clip(b.reason, 300) });
-    await env.DB.prepare(`UPDATE certificates SET name=?,name_key=?,org=?,phone=?,amount=?,amount_text=?,issued_date=?,campaign_id=?,campaign_name=?,template_id=?,file_url=?,note=?,history=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    await env.DB.prepare(`UPDATE certificates SET name=?,name_key=?,org=?,phone=?,amount=?,amount_text=?,issued_date=?,campaign_id=?,campaign_name=?,template_id=?,file_url=?,note=?,history=?,img_ok=0,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
       .bind(next.name, nameKey(next.name), next.org, next.phone, next.amount, next.amount_text, next.issued_date, next.campaign_id, next.campaign_name, next.template_id, next.file_url, next.note, JSON.stringify(hist), id).run();
     await log(env, me, 'sửa giấy ' + cur.code);
     return json({ ok: true });

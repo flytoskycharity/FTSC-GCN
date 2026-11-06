@@ -1,6 +1,7 @@
 import { unitsOf, normCode, validCode, codePath, hmac, randomInt, nameKey, normPhone, maskPhone, vnToday, fmtDate, vnd, toIsoDate } from './util.js';
 
 // Các ô thông tin đặt được lên mẫu. x, y tính theo % chiều rộng/cao; size theo % chiều rộng; w (ảnh) theo % chiều rộng.
+import { DEFAULT_BG, LEGACY_BG } from './default-bg.js';
 export const FIELD_KEYS = {
   name: 'Họ tên', org: 'Chức vụ, đơn vị', amount: 'Số tiền / nội dung ghi nhận', units: 'Số lượng quy đổi (chỉ số, VD: 10)', project: 'Dự án, chương trình',
   phone: 'Số điện thoại', code: 'Mã giấy chứng nhận', date: 'Ngày cấp', qr: 'Mã QR xác thực',
@@ -9,7 +10,7 @@ export const FIELD_KEYS = {
 export const IMAGE_KEYS = ['qr', 'signature', 'stamp'];
 
 export const DEFAULT_TEMPLATE = {
-  id: 0, campaign_id: 0, name: 'Mẫu mặc định', background: '/brand/cert-default.svg', width: 1600, height: 1131, min_amount: 0, enabled: 1,
+  id: 0, campaign_id: 0, name: 'Mẫu mặc định', background: DEFAULT_BG, width: 1600, height: 1131, min_amount: 0, enabled: 1,
   fields: [
     { key: 'name', x: 50, y: 44, size: 4.2, color: '#05228b', align: 'center', bold: true, font: 'serif' },
     { key: 'org', x: 50, y: 51.5, size: 1.8, color: '#0e1b3d', align: 'center', bold: true },
@@ -47,7 +48,7 @@ export function parseTemplate(row) {
   if (!row) return { ...DEFAULT_TEMPLATE };
   let fields = [];
   try { fields = JSON.parse(row.fields || '[]'); } catch { fields = []; }
-  return { ...row, fields: Array.isArray(fields) && fields.length ? fields : DEFAULT_TEMPLATE.fields };
+  return { ...row, background: !row.background || row.background === LEGACY_BG ? DEFAULT_BG : row.background, fields: Array.isArray(fields) && fields.length ? fields : DEFAULT_TEMPLATE.fields };
 }
 
 // Một dự án có nhiều mẫu: lấy mẫu đang bật có mức tiền tối thiểu cao nhất mà số tiền đạt tới;
@@ -115,4 +116,26 @@ export function certValues(settings, c) {
     code: c.code, date: fmtDate(c.issued_date), signer: settings.cert.signerName || '', units: unitNum,
     amountFull: amountLine + (c.units && amountLine !== (c.amount_text || settings.cert.programText) ? ` (${c.units})` : ''),
   };
+}
+
+// Giấy có ảnh ghép (nền + chữ thành một ảnh duy nhất) hay không: giấy có tệp gốc riêng thì không cần.
+export const needsImage = c => c && !c.doc_file && (!c.file_url || c.template_id);
+// Đánh dấu cần ghép lại ảnh giấy (sau khi sửa thông tin, đổi mẫu, đổi chữ ký…). where: điều kiện SQL.
+export const staleImages = (env, where = '1=1', args = []) => env.DB.prepare(`UPDATE certificates SET img_ok=0 WHERE ${where}`).bind(...args).run();
+export const certImagePath = c => `/api/cert-image?code=${encodeURIComponent(c.code)}&s=${c.sig}`;
+
+// Lịch sử điều chỉnh thông tin, dạng dễ đọc: [{at, by, reason, changes: [{label, from, to}]}].
+// Mỗi mục lưu thông tin CŨ; thông tin MỚI là bản cũ của lần sửa kế tiếp hoặc thông tin hiện tại.
+const HIST_LABELS = { name: 'Họ tên', org: 'Chức vụ, đơn vị', phone: 'Số điện thoại', amount: 'Số tiền', amount_text: 'Nội dung ghi nhận', issued_date: 'Ngày cấp', campaign_name: 'Dự án, chương trình' };
+export function historyOf(c) {
+  let list = [];
+  try { list = JSON.parse(c?.history || '[]'); } catch { list = []; }
+  if (!Array.isArray(list)) return [];
+  const show = (k, v) => k === 'amount' ? (Number(v) > 0 ? vnd(v) : '—') : k === 'issued_date' ? fmtDate(v) : k === 'phone' ? (v ? maskPhone(v) : '—') : (String(v ?? '').trim() || '—');
+  return list.map((h, i) => {
+    const old = h.old || {}, next = list[i + 1]?.old || c;
+    const changes = Object.keys(HIST_LABELS).filter(k => k in old && String(old[k] ?? '') !== String(next[k] ?? ''))
+      .map(k => ({ label: HIST_LABELS[k], from: show(k, old[k]), to: show(k, next[k]) }));
+    return { at: h.at || '', by: h.by || '', reason: h.reason || '', changes };
+  }).filter(h => h.changes.length);
 }

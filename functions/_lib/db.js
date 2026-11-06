@@ -19,6 +19,9 @@ const TABLES = [
   `CREATE INDEX IF NOT EXISTS bank_tx_campaign ON bank_tx(campaign_id, status)`,
   `CREATE TABLE IF NOT EXISTS verify_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, verdict TEXT NOT NULL DEFAULT '', code TEXT NOT NULL DEFAULT '', qr TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '', image TEXT NOT NULL DEFAULT '', ip TEXT NOT NULL DEFAULT '', ua TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'new', note TEXT NOT NULL DEFAULT '', checked_by TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
   `CREATE INDEX IF NOT EXISTS verify_logs_status ON verify_logs(status, id)`,
+  // Đề xuất điều chỉnh thông tin Giấy chứng nhận do người nhận gửi từ trang tra cứu.
+  `CREATE TABLE IF NOT EXISTS cert_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, cert_id INTEGER NOT NULL, code TEXT NOT NULL DEFAULT '', changes TEXT NOT NULL DEFAULT '{}', reason TEXT NOT NULL DEFAULT '', contact TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending', reply TEXT NOT NULL DEFAULT '', handled_by TEXT NOT NULL DEFAULT '', handled_at TEXT NOT NULL DEFAULT '', ip TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+  `CREATE INDEX IF NOT EXISTS cert_requests_status ON cert_requests(status, id)`,
 ];
 // Cột bổ sung cho bảng đã tạo ở bản trước (D1 không có ADD COLUMN IF NOT EXISTS nên bỏ qua lỗi cột đã có).
 const COLUMNS = [
@@ -28,6 +31,7 @@ const COLUMNS = [
   // Quy đổi đóng góp: VD 50.000đ = 1 cây; unit_strict = chỉ nhận bội số.
   ['campaigns', "unit_price INTEGER NOT NULL DEFAULT 0"], ['campaigns', "unit_name TEXT NOT NULL DEFAULT ''"], ['campaigns', "unit_strict INTEGER NOT NULL DEFAULT 0"],
   ['certificates', "units TEXT NOT NULL DEFAULT ''"],
+  ['certificates', "cert_image TEXT NOT NULL DEFAULT ''"], ['certificates', "img_ok INTEGER NOT NULL DEFAULT 0"],
   // Tệp giấy đã cấp ở nơi khác: bản scan ký tay hoặc PDF ký số.
   ['certificates', "doc_kind TEXT NOT NULL DEFAULT ''"], ['certificates', "doc_type TEXT NOT NULL DEFAULT ''"],
   ['certificates', "doc_file TEXT NOT NULL DEFAULT ''"], ['certificates', "doc_mime TEXT NOT NULL DEFAULT ''"],

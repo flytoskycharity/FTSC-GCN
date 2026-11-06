@@ -105,3 +105,4 @@ td .sub{display:block;font-size:.84em;opacity:.7}
  .burger{display:inline-flex;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:8px 12px;font-weight:800}
  .grid2,.ed{grid-template-columns:1fr}
 }
+.qstate{background:rgba(255,255,255,.1);border-radius:8px;padding:6px 8px;color:#dbe6ff;font-size:.95em}

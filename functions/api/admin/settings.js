@@ -2,6 +2,7 @@ import { adminApi, log } from '../../_lib/auth.js';
 import { loadSettings, saveSettings } from '../../_lib/db.js';
 import { json, readJson } from '../../_lib/util.js';
 import defaults from '../../_lib/defaults.js';
+import { staleImages } from '../../_lib/certs.js';
 
 // Giữ đúng cấu trúc của bản mặc định; bỏ khóa lạ, ép kiểu đơn giản.
 function shape(v, base) {
@@ -26,7 +27,11 @@ export const onRequestPost = adminApi('super', async ({ request, env, me }) => {
   for (const k of Object.keys(next.sources)) if (next.sources[k].url && !/^https:\/\//.test(next.sources[k].url)) return json({ error: 'Địa chỉ hệ thống liên thông phải bắt đầu bằng https://' }, 400);
   for (const k of ['primary', 'primaryDark', 'accent', 'paper', 'tint', 'ink']) if (!/^#[0-9a-f]{6}$/i.test(next.theme[k])) next.theme[k] = defaults.theme[k];
   for (const k of ['signature', 'stamp']) if (next.cert[k] && !/^\/(media|brand)\/[a-z0-9/_.-]+$/i.test(next.cert[k])) next.cert[k] = '';
+  // Đổi chữ ký, con dấu, phông chữ, cách ghi trên giấy → ghép lại ảnh toàn bộ giấy.
+  const look = v => JSON.stringify([v.cert, v.theme.fontHeading, v.theme.fontBody, v.site.url]);
+  const before = await loadSettings(env);
   await saveSettings(env, next);
+  if (look(before) !== look(next)) await staleImages(env);
   await log(env, me, 'cập nhật cài đặt');
   return json({ ok: true, settings: next });
 });

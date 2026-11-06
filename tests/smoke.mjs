@@ -36,8 +36,36 @@ assert.equal(bad.status, 404, 'sai mã xác thực phải báo không hợp lệ
 const logs = await j('/api/admin/verify-logs?status=new');
 assert.ok(logs.items.some(l => l.code === cert.code && l.verdict === 'invalid'), 'ghi nhật ký xác thực sai');
 const chk = await j('/api/verify?qr=' + encodeURIComponent(B + cert.url));
-assert.equal(chk.state, 'valid'); assert.ok(chk.render.rows.length >= 1 && chk.render.tpl.width, 'trả dữ liệu dựng giấy gốc');
+assert.equal(chk.state, 'valid'); assert.ok(chk.render.rows.length >= 1 && chk.render.width && !JSON.stringify(chk).includes('background'), 'trả dữ liệu so giấy, không lộ phôi');
 await j('/api/verify', { verdict: 'mismatch', code: cert.code, detail: 'thử' });
+
+// Chống làm giả: phôi trống không công khai; ảnh giấy chỉ là một ảnh đã ghép, cần đúng mã xác thực.
+assert.equal((await fetch(B + '/media/_default/cert.svg')).status, 404, 'phôi mặc định không được công khai');
+assert.equal((await call('/media/_default/cert.svg')).status, 200, 'quản trị viên xem được phôi');
+assert.ok(!/cert-default|\/media\/templates|\/media\/signs|"background"/.test(ok), 'trang xác thực không lộ phôi, chữ ký');
+const imgUrl = '/api/cert-image?code=' + encodeURIComponent(cert.code) + '&s=' + cert.url.split('s=')[1];
+assert.equal((await fetch(B + imgUrl)).status, 404, 'chưa ghép thì chưa có ảnh');
+const q = await j('/api/admin/cert-render');
+const item = q.items.find(x => x.code === cert.code); assert.ok(item && item.tpl.background, 'hàng đợi ghép ảnh có giấy mới');
+const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0xff, 0xd9]);
+const up = await fetch(B + `/api/admin/cert-render?id=${item.id}&ver=${encodeURIComponent(item.ver)}`, { method: 'POST', headers: { Origin: B, Cookie: cookie, 'Content-Type': 'image/jpeg' }, body: jpg });
+assert.ok(up.ok, 'lưu ảnh đã ghép');
+const im = await fetch(B + imgUrl); assert.equal(im.status, 200); assert.equal(im.headers.get('content-type'), 'image/jpeg');
+assert.equal((await fetch(B + imgUrl.replace(/s=\w+/, 's=000000000000'))).status, 404, 'sai mã xác thực không lấy được ảnh');
+assert.match(await (await call(cert.url)).text(), /id="certImg"/);
+// Đề xuất điều chỉnh: sai 4 số cuối bị từ chối; duyệt thì giấy cập nhật, ghi rõ thông tin đã sửa.
+const sig = cert.url.split('s=')[1];
+assert.equal((await call('/api/cert-fix', { code: cert.code, s: sig, name: 'Người Thử Nghiệm Mới', last4: '0000', reason: 'Sai tên' })).status, 400);
+await j('/api/cert-fix', { code: cert.code, s: sig, name: 'Người Thử Nghiệm Mới', org: 'Lớp 12A', last4: '0111', reason: 'Sai tên' });
+assert.match(await (await call(cert.url)).text(), /đang chờ Ban Tổ chức/);
+const fx = (await j('/api/admin/cert-requests')).items.find(r => r.code === cert.code);
+assert.equal(fx.changes.name, 'Người Thử Nghiệm Mới');
+await j('/api/admin/cert-requests', { action: 'approve', id: fx.id, name: fx.changes.name, org: fx.changes.org });
+const after = await (await call(cert.url)).text();
+assert.match(after, /đã được điều chỉnh 1 lần/); assert.match(after, /<s>Người Thử Nghiệm<\/s> → <b>Người Thử Nghiệm Mới<\/b>/);
+assert.equal((await fetch(B + imgUrl)).status, 404, 'sửa xong thì ảnh cũ không còn dùng, chờ ghép lại');
+assert.ok((await j('/api/admin/cert-render')).items.some(x => x.code === cert.code), 'giấy sửa xong vào lại hàng đợi');
+assert.ok((await j('/api/lookup?q=0901000111')).results.find(r => r.code === cert.code).adjusted[0].changes.length, 'tra cứu ghi rõ đã điều chỉnh');
 // Quỹ chung luôn có sẵn ở trang Quyên góp
 assert.match(await (await call('/ung-ho')).text(), /Quỹ chung các dự án/);
 

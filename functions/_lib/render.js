@@ -1,11 +1,11 @@
 // Dựng HTML phía máy chủ cho các trang công khai. Giao diện đồng bộ với website Tủ sách Bồ Câu Trắng (Khuyendoc).
 import { esc, fmtDate, fmtDateTime, vnd, codePath, unitsOf, unitNote } from './util.js';
-import { certValues, IMAGE_KEYS } from './certs.js';
+import { certValues, IMAGE_KEYS, historyOf, certImagePath } from './certs.js';
 import { qrSvg } from './qr.js';
 import { tracked } from './news.js';
 import { docKindLabel, docUrl, DOC_TYPES, NEAC_URL, parseSig } from './docs.js';
 
-const V = '2';
+const V = '3';
 const ICON = {
   search: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   shield: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6l-8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>',
@@ -178,6 +178,19 @@ export function renderStatement(x) {
 }
 
 // ---------- Xác thực ----------
+// Ghi rõ thông tin đã điều chỉnh (mã giấy giữ nguyên).
+function histBlock(c) {
+  const h = historyOf(c);
+  if (!h.length) return '';
+  return `<div class="adj"><p><b>Thông tin đã được điều chỉnh ${h.length} lần</b> (mã giấy giữ nguyên)</p><ul>${h.map(e => `<li><span class="fine">${esc(fmtDate(e.at))}:</span> ${e.changes.map(ch => `${esc(ch.label)} <s>${esc(ch.from)}</s> → <b>${esc(ch.to)}</b>`).join('; ')}</li>`).join('')}</ul></div>`;
+}
+
+// Biểu mẫu đề xuất điều chỉnh thông tin; Ban Tổ chức duyệt rồi giấy mới cập nhật.
+function fixForm(c) {
+  if (c._pendingFix) return `<div class="fix"><p class="fine center">Đã có đề xuất điều chỉnh thông tin giấy này đang chờ Ban Tổ chức xem xét.</p></div>`;
+  return `<details class="fix" id="dieu-chinh"><summary>Thông tin trên giấy chưa đúng? Đề xuất điều chỉnh</summary><p class="fine">Điền thông tin đúng. Ban Tổ chức kiểm tra và duyệt; sau khi duyệt, giấy được cập nhật (giữ nguyên mã) và trang này ghi rõ thông tin đã điều chỉnh.</p><form id="fixForm" data-code="${esc(c.code)}" data-s="${esc(c.sig)}"><div class="f2"><label class="fl"><span>Họ tên đúng *</span><input name="name" value="${esc(c.name)}" required maxlength="160"></label><label class="fl"><span>Chức vụ, đơn vị (nếu có)</span><input name="org" value="${esc(c.org)}" maxlength="200"></label></div><div class="f2">${c.phone ? '<label class="fl"><span>4 số cuối điện thoại đã đăng ký *</span><input name="last4" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required></label>' : ''}<label class="fl"><span>Số điện thoại hoặc email để liên hệ</span><input name="contact" maxlength="160"></label></div><label class="fl"><span>Nội dung cần điều chỉnh, lý do *</span><textarea name="reason" rows="3" maxlength="500" required placeholder="VD: Sai chính tả họ tên; số tiền đúng là 500.000đ…"></textarea></label><p class="err" hidden></p><button class="btn btn-primary btn-sm">Gửi đề xuất</button></form></details>`;
+}
+
 export function renderVerify(x, c, state, tpl) {
   const { s } = x;
   const msgs = {
@@ -188,23 +201,23 @@ export function renderVerify(x, c, state, tpl) {
   }[state];
   const v = c && state !== 'invalid' ? certValues(s, c) : null;
   const ok = state === 'valid' || state === 'unsigned';
-  const info = `<div class="ver ver-${state}"><div class="ver-top"><div class="ver-ic">${ok ? ICON.check : '!'}</div><div><h1>${esc(msgs[0])}</h1><p>${esc(msgs[1])}</p>${state === 'revoked' && c.revoke_reason ? `<p><b>Lý do:</b> ${esc(c.revoke_reason)}</p>` : ''}</div></div>${v ? `<dl class="profile"><div><dt>Mã giấy</dt><dd><b>${esc(c.code)}</b></dd></div>${state === 'valid' ? `<div><dt>Mã xác thực</dt><dd><code>${esc(c.sig)}</code></dd></div>` : ''}<div><dt>Họ tên</dt><dd>${esc(v.name)}${v.org ? '<br><span class="muted">' + esc(v.org) + '</span>' : ''}</dd></div><div><dt>Ghi nhận</dt><dd>${esc(v.amountFull || v.amount)}</dd></div><div><dt>Dự án, chương trình</dt><dd>${esc(v.project)}</dd></div><div><dt>Ngày cấp</dt><dd>${esc(v.date)}</dd></div>${v.phone ? `<div><dt>Số điện thoại</dt><dd>${esc(v.phone)}</dd></div>` : ''}<div><dt>Đơn vị cấp</dt><dd>${esc(s.site.owner)}</dd></div></dl>${c.history && c.history !== '[]' ? `<p class="fine">Thông tin đã được điều chỉnh ${JSON.parse(c.history).length} lần, mã giấy giữ nguyên.</p>` : ''}` : ''}<p class="ver-more"><a href="/tra-cuu?tab=kiem-tra">Kiểm tra giấy khác</a> · <a href="/tra-cuu">Tra cứu</a></p></div>`;
+  const info = `<div class="ver ver-${state}"><div class="ver-top"><div class="ver-ic">${ok ? ICON.check : '!'}</div><div><h1>${esc(msgs[0])}</h1><p>${esc(msgs[1])}</p>${state === 'revoked' && c.revoke_reason ? `<p><b>Lý do:</b> ${esc(c.revoke_reason)}</p>` : ''}</div></div>${v ? `<dl class="profile"><div><dt>Mã giấy</dt><dd><b>${esc(c.code)}</b></dd></div>${state === 'valid' ? `<div><dt>Mã xác thực</dt><dd><code>${esc(c.sig)}</code></dd></div>` : ''}<div><dt>Họ tên</dt><dd>${esc(v.name)}${v.org ? '<br><span class="muted">' + esc(v.org) + '</span>' : ''}</dd></div><div><dt>Ghi nhận</dt><dd>${esc(v.amountFull || v.amount)}</dd></div><div><dt>Dự án, chương trình</dt><dd>${esc(v.project)}</dd></div><div><dt>Ngày cấp</dt><dd>${esc(v.date)}</dd></div>${v.phone ? `<div><dt>Số điện thoại</dt><dd>${esc(v.phone)}</dd></div>` : ''}<div><dt>Đơn vị cấp</dt><dd>${esc(s.site.owner)}</dd></div></dl>${histBlock(c)}` : ''}<p class="ver-more"><a href="/tra-cuu?tab=kiem-tra">Kiểm tra giấy khác</a> · <a href="/tra-cuu">Tra cứu</a></p></div>`;
   let fig = '';
   if (state === 'valid' && c.doc_file) fig = docBlock(c);
   else if (ok && c.doc_file) fig = `<div class="cv-fig"><div class="card center"><p>Giấy có tệp gốc (${esc(docKindLabel(c))}). Để xem tệp, hãy mở bằng đường dẫn trong mã QR hoặc nhập thêm mã xác thực.</p></div></div>`;
-  else if (ok && tpl) {
-    const data = {
-      tpl: { background: tpl.background, width: tpl.width, height: tpl.height, fields: (tpl.fields || []).filter(f => f.visible !== false) },
-      values: v,
-      images: { qr: 'data:image/svg+xml;utf8,' + encodeURIComponent(qrSvg(x.origin + `/xac-thuc/${codePath(c.code)}?s=${c.sig}`, { dark: '#000', level: 'M', border: 2 })), signature: s.cert.signature || '', stamp: s.cert.stamp || '' },
-      fonts: [s.theme.fontHeading, s.theme.fontBody], file: c.code,
-    };
-    fig = `<div class="cv-fig"><div class="cv-img"><canvas id="certCanvas" aria-label="Giấy chứng nhận ${esc(c.code)}"></canvas><p class="cv-wait">Đang dựng giấy chứng nhận…</p></div><div class="btns cv-btns"><button class="btn btn-primary btn-sm" id="dlPdf" type="button" disabled>Tải PDF</button><button class="btn btn-ghost btn-sm" id="dlPng" type="button" disabled>Tải ảnh</button>${c.file_url ? `<a class="btn btn-ghost btn-sm" href="${esc(c.file_url)}" target="_blank" rel="noopener">Xem bản gốc ↗</a>` : ''}</div><script type="application/json" id="certData">${JSON.stringify(data).replace(/</g, '\\u003c')}</script></div>`;
+  else if (state === 'valid' && tpl) {
+    // Chỉ hiện ảnh giấy đã ghép sẵn thành một ảnh duy nhất (nền và chữ không tách rời).
+    fig = c.img_ok && c.cert_image
+      ? `<div class="cv-fig"><div class="cv-img"><img id="certImg" src="${esc(certImagePath(c))}" alt="Giấy chứng nhận ${esc(c.code)}" oncontextmenu="return false" draggable="false"></div><div class="btns cv-btns"><button class="btn btn-primary btn-sm" id="dlPdf" type="button" data-file="${esc(c.code.replace(/\//g, '-'))}" disabled>Tải PDF</button><a class="btn btn-ghost btn-sm" href="${esc(certImagePath(c))}&dl=1">Tải ảnh</a>${c.file_url ? `<a class="btn btn-ghost btn-sm" href="${esc(c.file_url)}" target="_blank" rel="noopener">Xem bản gốc ↗</a>` : ''}</div></div>`
+      : `<div class="cv-fig"><div class="card center"><p><b>Ảnh Giấy chứng nhận đang được tạo.</b></p><p class="fine">Thông tin bên cạnh là thông tin chính thức. Bạn vui lòng quay lại sau ít phút để xem và tải giấy.</p></div></div>`;
+  } else if (state === 'unsigned' && tpl) {
+    fig = `<div class="cv-fig"><div class="card center"><p>Để xem và tải ảnh Giấy chứng nhận, hãy quét mã QR trên giấy, hoặc <a href="/tra-cuu">tra cứu</a> theo số điện thoại hoặc họ tên.</p></div></div>`;
   } else if (ok && c.file_url) {
     fig = `<div class="cv-fig"><div class="card center"><p>Bản giấy gốc được lưu tại kho tài liệu của Fly To Sky.</p><a class="btn btn-primary" href="${esc(c.file_url)}" target="_blank" rel="noopener">Xem Giấy chứng nhận ↗</a></div></div>`;
   }
-  const main = `<section class="sec bg-paper cert-main"><div class="wrap"><div class="${fig ? 'cv' : 'cv-one'}">${fig}${info}</div></div></section>`;
-  return page(x, { title: 'Xác thực Giấy chứng nhận | ' + s.site.owner, noindex: true }, 'page cert-page', main, fig.includes('certCanvas') ? `<script src="/assets/cert.js?v=${V}" defer></script>` : '');
+  const fix = state === 'valid' ? fixForm(c) : '';
+  const main = `<section class="sec bg-paper cert-main"><div class="wrap"><div class="${fig ? 'cv' : 'cv-one'}">${fig}${info}</div>${fix}</div></section>`;
+  return page(x, { title: 'Xác thực Giấy chứng nhận | ' + s.site.owner, noindex: true }, 'page cert-page', main, (fig.includes('certImg') ? `<script src="/assets/cert.js?v=${V}" defer></script>` : '') + (fix ? `<script src="/assets/fix.js?v=${V}" defer></script>` : ''));
 }
 
 // Khối chữ ký số: kết quả kiểm tra ngay trên hệ thống + hướng dẫn kiểm tra lại tại NEAC.

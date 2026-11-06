@@ -25,7 +25,7 @@ export async function onRequestGet({ request, env }) {
     const { c, state } = await findCert(env, code, s);
     if (!c || state === 'invalid') return json({ state: 'invalid', code });
     if (state === 'revoked') return json({ state: 'revoked', code: c.code, reason: c.revoke_reason });
-    return json({ state: state === 'valid' ? 'valid' : 'unsigned', source: 'fts', code: c.code, url: u.pathname + u.search, render: c.doc_file ? null : await renderData(env, settings, origin, c) });
+    return json({ state: state === 'valid' ? 'valid' : 'unsigned', source: 'fts', code: c.code, url: u.pathname + u.search, render: c.doc_file ? null : await renderData(env, settings, c, state === 'valid') });
   }
   // Giấy của Khuyendoc: hỏi qua kênh liên thông, đối chiếu mã xác thực trong đường dẫn.
   if (kd && u.host === kd && m) {

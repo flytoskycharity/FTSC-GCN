@@ -1,4 +1,5 @@
-// Dựng Giấy chứng nhận trên canvas từ mẫu + dữ liệu gốc, tải về PDF/ảnh. Dùng chung cho trang xác thực và trang quản trị.
+// Dựng Giấy chứng nhận trên canvas từ mẫu + dữ liệu gốc: CHỈ chạy ở trang quản trị (ghép thành một ảnh rồi lưu lên máy chủ).
+// Trang công khai chỉ nhận ảnh đã ghép sẵn và tải về ảnh/PDF từ ảnh đó, không bao giờ có nền trống riêng.
 (() => {
   const loadImg = src => new Promise(res => {
     if (!src) return res(null);
@@ -16,10 +17,14 @@
       await Promise.all([serif, sans].flatMap(f => ['400', '700'].map(w => document.fonts.load(`${w} 40px "${f}"`, 'ẮẰẲẴẶ ĐƯỜNG Việt').catch(() => {}))));
     }
     const bg = await loadImg(t.background);
+    if (data.strict && t.background && !bg) throw new Error('không tải được ảnh nền mẫu giấy');
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
     if (bg) ctx.drawImage(bg, 0, 0, W, H);
     const imgs = {};
-    for (const k of ['qr', 'signature', 'stamp']) imgs[k] = await loadImg(data.images?.[k]);
+    for (const k of ['qr', 'signature', 'stamp']) {
+      imgs[k] = await loadImg(data.images?.[k]);
+      if (data.strict && data.images?.[k] && !imgs[k]) throw new Error('không tải được ảnh ' + ({ qr: 'mã QR', signature: 'chữ ký', stamp: 'con dấu' })[k]);
+    }
     for (const f of t.fields || []) {
       if (f.visible === false) continue;
       const x = f.x / 100 * W, y = f.y / 100 * H;
@@ -45,6 +50,17 @@
       ctx.textBaseline = 'middle';
       ctx.fillText(text, x, y);
     }
+    // Hình chìm mã giấy rải mờ khắp giấy: khó cắt ghép, khó xóa chữ để lấy lại nền.
+    if (data.watermark) {
+      ctx.save(); ctx.globalAlpha = 0.045; ctx.fillStyle = '#05228b'; ctx.font = `700 ${Math.round(W * 0.013)}px "${sans}",Arial,sans-serif`;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.translate(W / 2, H / 2); ctx.rotate(-Math.PI / 7);
+      const step = W * 0.26, gap = W * 0.07;
+      for (let y = -H; y < H; y += gap) for (let x = -W; x < W; x += step) ctx.fillText(data.watermark, x + (Math.round(y / gap) % 2 ? step / 2 : 0), y);
+      ctx.restore();
+    }
+    // Vẽ lại QR sau cùng để hình chìm không làm khó quét.
+    const qf = (t.fields || []).find(f => f.key === 'qr' && f.visible !== false);
+    if (data.watermark && qf && imgs.qr) { const w = (qf.w || 10) / 100 * W; ctx.fillStyle = '#fff'; ctx.fillRect(qf.x / 100 * W, qf.y / 100 * H, w, w); ctx.drawImage(imgs.qr, qf.x / 100 * W, qf.y / 100 * H, w, w); }
     return canvas;
   }
 
@@ -77,14 +93,14 @@
 
   window.FTSCert = { draw, pdfFromCanvas, save };
 
-  const el = document.getElementById('certData'), canvas = document.getElementById('certCanvas');
-  if (!el || !canvas) return;
-  const data = JSON.parse(el.textContent);
-  draw(canvas, data).then(() => {
-    document.querySelector('.cv-wait')?.remove();
-    const pdf = document.getElementById('dlPdf'), png = document.getElementById('dlPng');
-    pdf.disabled = png.disabled = false;
-    pdf.addEventListener('click', () => save(pdfFromCanvas(canvas), `GCN-${data.file}.pdf`));
-    png.addEventListener('click', () => canvas.toBlob(b => save(b, `GCN-${data.file}.png`), 'image/png'));
+  // Trang xác thực: tải ảnh/PDF từ ảnh giấy đã ghép sẵn.
+  const img = document.getElementById('certImg'), pdf = document.getElementById('dlPdf');
+  if (!img || !pdf) return;
+  const ready = () => { pdf.disabled = false; };
+  if (img.complete && img.naturalWidth) ready(); else img.addEventListener('load', ready);
+  pdf.addEventListener('click', () => {
+    const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img, 0, 0);
+    save(pdfFromCanvas(c), `GCN-${pdf.dataset.file}.pdf`);
   });
 })();

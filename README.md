@@ -16,6 +16,8 @@ Chạy trên **Cloudflare Pages** (cùng kiến trúc với Tủ sách Bồ Câu
 - **Dự án kêu gọi**: trang `/du-an/<slug>` có tiến độ, đếm ngược, thông tin chuyển khoản, form ủng hộ tạo VietQR với cú pháp riêng `CÚPHÁP SĐT`.
 - **Duyệt ủng hộ thủ công**: người ủng hộ tạo mã QR, chuyển khoản, bấm “Tôi đã chuyển tiền”; admin xem app ngân hàng rồi bấm **Duyệt** (Admin → Duyệt ủng hộ) để cấp GCN. Đọc sao kê tự động chỉ là tùy chọn (mặc định tắt).
 - **Nhiều mẫu cho một dự án**: mẫu có “mức tiền tối thiểu”; hệ thống chọn mẫu cao nhất mà số tiền đạt tới, nhiều mẫu cùng mức thì chọn ngẫu nhiên. Trình sửa mẫu kéo thả ngay trong admin.
+- **Chống làm giả bằng ảnh liền khối**: trang công khai chỉ hiện ảnh giấy đã ghép sẵn (nền + chữ + chữ ký + QR + hình chìm mã giấy thành một ảnh JPEG), cần đúng mã xác thực mới xem được. Phôi trống, chữ ký, con dấu chỉ quản trị viên xem được. Việc ghép chạy ngầm ở trình duyệt quản trị khi có giấy mới hoặc giấy vừa sửa (góc trái dưới admin báo "Đang tạo ảnh giấy: còn N").
+- **Đề xuất điều chỉnh**: người nhận gửi từ trang xác thực (cần 4 số cuối điện thoại); admin duyệt ở mục Đề xuất điều chỉnh, giấy cập nhật và trang tra cứu ghi rõ thông tin cũ → mới.
 - **Admin riêng** (không phải sửa mã): dự án, mẫu, giấy (cấp lẻ, cấp hàng loạt, sửa, thu hồi), duyệt ủng hộ, nhập dữ liệu cũ từ Google Sheets, cài đặt nội dung, tài khoản & nhật ký.
 
 ## Tệp giấy cấp ở nơi khác & chữ ký số

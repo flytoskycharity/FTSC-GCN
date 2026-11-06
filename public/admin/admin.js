@@ -12,6 +12,7 @@
   async function api(path, body, method) {
     const opt = { method: method || (body ? 'POST' : 'GET'), headers: {} };
     if (body instanceof FormData) opt.body = body;
+    else if (body instanceof Blob) { opt.body = body; opt.headers['Content-Type'] = body.type || 'application/octet-stream'; }
     else if (body) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
     const r = await fetch(path, opt);
     let d = {};
@@ -19,6 +20,7 @@
     if (r.status === 401) { me = null; boot(); throw new Error(d.error || 'Hết phiên đăng nhập'); }
     if (d.mustChange) { me.mustChange = true; boot(); throw new Error(d.error); }
     if (!r.ok) throw new Error(d.error || 'Lỗi ' + r.status);
+    if (opt.method !== 'GET' && !path.startsWith('/api/admin/cert-render')) setTimeout(() => kickQueue(), 300);
     return d;
   }
   let toastTimer;
@@ -118,15 +120,17 @@
   // ---------- khung ----------
   const TABS = [
     ['tong-quan', 'Tổng quan', overview], ['du-an', 'Dự án kêu gọi', campaignsView], ['mau', 'Mẫu Giấy chứng nhận', templatesView],
-    ['duyet', 'Duyệt ủng hộ', approveView], ['giay', 'Giấy chứng nhận', certsView], ['nhat-ky', 'Nhật ký xác thực', logsView], ['giao-dich', 'Sao kê (không bắt buộc)', txView], ['nhap', 'Nhập dữ liệu cũ', importView],
+    ['duyet', 'Duyệt ủng hộ', approveView], ['de-xuat', 'Đề xuất điều chỉnh', fixView], ['giay', 'Giấy chứng nhận', certsView], ['nhat-ky', 'Nhật ký xác thực', logsView], ['giao-dich', 'Sao kê (không bắt buộc)', txView], ['nhap', 'Nhập dữ liệu cũ', importView],
     ['cai-dat', 'Cài đặt', settingsView, true], ['tai-khoan', 'Tài khoản & nhật ký', usersView, true],
   ];
   function shell() {
-    app.innerHTML = `<div class="shell"><aside class="side"><a class="side-brand" href="/" target="_blank"><img src="/brand/fts-logo-pair.png" alt=""><b>Cổng tra cứu Giấy chứng nhận</b></a><nav>${TABS.filter(t => !t[3] || isSuper()).map(t => `<a href="#${t[0]}" data-tab="${t[0]}">${esc(t[1])}</a>`).join('')}</nav><div class="side-foot"><p><b>${esc(me.name || me.username)}</b><br>${esc({ super: 'Quản trị cao nhất', staff: 'Cán bộ cấp GCN & dự án', viewer: 'Chỉ xem' }[me.role] || me.role)}</p><button type="button" id="chg">Đổi mật khẩu</button><button type="button" id="out">Đăng xuất</button></div></aside><main class="main" id="main"></main></div>`;
+    app.innerHTML = `<div class="shell"><aside class="side"><a class="side-brand" href="/" target="_blank"><img src="/brand/fts-logo-pair.png" alt=""><b>Cổng tra cứu Giấy chứng nhận</b></a><nav>${TABS.filter(t => !t[3] || isSuper()).map(t => `<a href="#${t[0]}" data-tab="${t[0]}">${esc(t[1])}</a>`).join('')}</nav><div class="side-foot"><p id="qState" class="qstate" hidden></p><p><b>${esc(me.name || me.username)}</b><br>${esc({ super: 'Quản trị cao nhất', staff: 'Cán bộ cấp GCN & dự án', viewer: 'Chỉ xem' }[me.role] || me.role)}</p><button type="button" id="chg">Đổi mật khẩu</button><button type="button" id="out">Đăng xuất</button></div></aside><main class="main" id="main"></main></div>`;
     $('#chg').onclick = () => changeView(false);
     $('#out').onclick = async () => { await fetch('/api/logout', { method: 'POST' }); me = null; boot(); };
     window.onhashchange = route;
     route();
+    kickQueue();
+    clearInterval(window.__q); window.__q = setInterval(kickQueue, 60000);
   }
   async function route() {
     const [tab, arg] = (location.hash.slice(1) || 'tong-quan').split('/');
@@ -146,7 +150,7 @@
     main.innerHTML = top('Tổng quan', 'Cổng tra cứu Giấy chứng nhận của Hệ thống từ thiện Fly To Sky', canEdit() ? '<a class="btn accent" href="#giay/new">+ Cấp giấy</a><a class="btn ghost" href="#du-an/new">+ Dự án</a>' : '') +
       `<div class="stats"><div class="stat"><b>${d.certs}</b><span>Giấy chứng nhận</span></div><div class="stat"><b>${d.month}</b><span>Cấp trong 30 ngày</span></div><div class="stat"><b>${d.open}/${d.campaigns}</b><span>Dự án đang mở / tổng</span></div><div class="stat${d.unmatched ? ' warn' : ''}"><b>${d.unmatched}</b><span>Giao dịch chưa nhận diện</span></div><div class="stat"><b>${d.pending}</b><span>Đăng ký ủng hộ chờ tiền</span></div><div class="stat"><b>${d.revoked}</b><span>Giấy đã thu hồi</span></div><a class="stat${d.suspicious ? ' warn' : ''}" href="#nhat-ky" style="text-decoration:none;color:inherit"><b>${d.suspicious}</b><span>Xác thực sai/lỗi chờ xử lý</span></a></div>
       <div class="grid2"><div class="card"><h2>Giấy cấp gần đây</h2><div class="tbl"><table><tbody>${d.recent.map(c => `<tr><td><b>${esc(c.name)}</b><span class="sub">${esc(c.campaign_name)}</span></td><td><a href="/xac-thuc/${c.code.split('/').map(encodeURIComponent).join('/')}?s=${c.sig}" target="_blank"><code>${esc(c.code)}</code></a><span class="sub">${dmy(c.issued_date)}</span></td><td>${c.amount ? vnd(c.amount) : esc(c.amount_text)}</td></tr>`).join('') || '<tr><td class="empty">Chưa có giấy nào</td></tr>'}</tbody></table></div></div>
-      <div class="card"><h2>Duyệt ủng hộ</h2><p>${d.pending ? `Có <b>${d.pending}</b> lượt ủng hộ đang chờ duyệt.` : 'Không có lượt nào chờ duyệt.'}</p><p><a href="#duyet">Mở Duyệt ủng hộ →</a></p><h3 style="margin-top:18px">Hoạt động gần đây</h3><div class="tbl"><table><tbody>${d.audit.map(a => `<tr><td>${esc(a.actor)}</td><td>${esc(a.action)}</td><td class="sub">${dmy(a.at)}</td></tr>`).join('')}</tbody></table></div></div></div>`;
+      <div class="card"><h2>Duyệt ủng hộ</h2><p>${d.pending ? `Có <b>${d.pending}</b> lượt ủng hộ đang chờ duyệt.` : 'Không có lượt nào chờ duyệt.'} <a href="#duyet">Mở →</a></p><p>${d.fixes ? `Có <b>${d.fixes}</b> đề xuất điều chỉnh thông tin giấy.` : 'Không có đề xuất điều chỉnh nào.'} <a href="#de-xuat">Mở →</a></p><h3 style="margin-top:18px">Hoạt động gần đây</h3><div class="tbl"><table><tbody>${d.audit.map(a => `<tr><td>${esc(a.actor)}</td><td>${esc(a.action)}</td><td class="sub">${dmy(a.at)}</td></tr>`).join('')}</tbody></table></div></div></div>`;
   }
 
   // ---------- Dự án ----------
@@ -390,6 +394,62 @@
     $('#nx').onclick = () => { logState.page++; logsView(main); };
     $$('[data-chk]', main).forEach(b => b.onclick = async () => { const note = prompt('Ghi chú kết quả điều tra (không bắt buộc):') ?? null; if (note === null) return; try { await api('/api/admin/verify-logs', { action: 'check', id: b.dataset.chk, note }); logsView(main); } catch (x) { fail(x); } });
     $$('[data-reopen]', main).forEach(b => b.onclick = async () => { try { await api('/api/admin/verify-logs', { action: 'reopen', id: b.dataset.reopen }); logsView(main); } catch (x) { fail(x); } });
+  }
+
+  // ---------- Ghép ảnh Giấy chứng nhận ----------
+  // Trang công khai chỉ hiện ảnh đã ghép (nền + chữ + chữ ký + QR thành một ảnh), không bao giờ gửi nền trống ra ngoài.
+  // Việc ghép chạy ngầm ở trình duyệt quản trị (nơi được xem phôi) mỗi khi có giấy mới hoặc giấy vừa sửa.
+  let qBusy = false, qAgain = false;
+  async function kickQueue() {
+    if (!me || !canEdit() || !window.FTSCert) return;
+    if (qBusy) { qAgain = true; return; }
+    qBusy = true;
+    const st = document.getElementById('qState');
+    try {
+      for (let round = 0; round < 500; round++) {
+        const d = await api('/api/admin/cert-render');
+        if (st) { st.hidden = !d.left; st.textContent = `Đang tạo ảnh giấy: còn ${d.left}`; }
+        if (!d.items.length) break;
+        for (const it of d.items) {
+          const c = document.createElement('canvas');
+          await window.FTSCert.draw(c, { ...it, strict: true });
+          const blob = await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.92));
+          await api(`/api/admin/cert-render?id=${it.id}&ver=${encodeURIComponent(it.ver)}`, blob, 'POST');
+        }
+      }
+    } catch (e) {
+      console.warn(e);
+      if (st) { st.hidden = false; st.textContent = 'Chưa tạo được ảnh giấy: ' + e.message; }
+    } finally {
+      qBusy = false;
+      if (qAgain) { qAgain = false; kickQueue(); }
+    }
+  }
+
+  // ---------- Đề xuất điều chỉnh thông tin GCN ----------
+  const FST = { pending: ['Chờ xem xét', 'warn'], approved: ['Đã duyệt', 'ok'], rejected: ['Từ chối', 'mute'], replaced: ['Bị thay bằng đề xuất mới', 'mute'] };
+  async function fixView(main, arg) {
+    const view = arg || 'pending';
+    const d = await api('/api/admin/cert-requests?status=' + view);
+    const tabs = [['pending', `Chờ xem xét (${d.pending})`], ['approved', 'Đã duyệt'], ['rejected', 'Từ chối'], ['all', 'Tất cả']];
+    const diff = (label, cur, nx) => nx === undefined ? `<span class="sub">${esc(label)}: ${esc(cur || '—')}</span>` : `<span class="sub">${esc(label)}: <s>${esc(cur || '—')}</s> → <b>${esc(nx || '—')}</b></span>`;
+    main.innerHTML = top('Đề xuất điều chỉnh', 'Người nhận gửi từ trang xác thực (đã nhập đúng 4 số cuối điện thoại). Duyệt thì giấy được cập nhật, giữ nguyên mã; trang tra cứu ghi rõ thông tin đã điều chỉnh.') +
+      `<div class="filters">${tabs.map(([k, l]) => `<a class="btn sm ${k === view ? '' : 'ghost'}" href="#de-xuat/${k}">${l}</a>`).join('')}</div>` +
+      `<div class="card tbl"><table><thead><tr><th>Ngày gửi</th><th>Giấy</th><th>Đề xuất</th><th>Nội dung, lý do</th><th>Trạng thái</th></tr></thead><tbody>${d.items.map(r => `<tr><td>${dmy(r.created_at)}</td><td>${r.url ? `<a href="${esc(r.url)}" target="_blank"><code>${esc(r.code)}</code></a>` : `<code>${esc(r.code)}</code>`}<span class="sub">${esc(r.campaign_name || '')}</span></td><td>${diff('Họ tên', r.cur_name, r.changes.name)}${diff('Chức vụ, đơn vị', r.cur_org, r.changes.org)}</td><td>${esc(r.reason)}${r.contact ? `<span class="sub">Liên hệ: ${esc(r.contact)}</span>` : ''}</td><td><span class="tag ${(FST[r.status] || [])[1] || 'mute'}">${(FST[r.status] || [r.status])[0]}</span>${r.reply ? `<span class="sub">${esc(r.reply)}</span>` : ''}${r.handled_by ? `<span class="sub">${esc(r.handled_by)} · ${dmy(r.handled_at)}</span>` : ''}${r.status === 'pending' && canEdit() ? `<div class="row" style="margin-top:6px"><button class="btn sm" data-fok="${r.id}">Duyệt</button><button class="btn sm ghost" data-fno="${r.id}">Từ chối</button></div>` : ''}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">Không có đề xuất nào.</td></tr>'}</tbody></table></div>`;
+    $$('[data-fok]', main).forEach(b => b.onclick = () => {
+      const r = d.items.find(x => String(x.id) === b.dataset.fok);
+      const m = modal.open(`<h2>Duyệt điều chỉnh giấy <code>${esc(r.code)}</code></h2><p class="hint">Lý do: ${esc(r.reason)}<br>Có thể sửa lại cho đúng trước khi duyệt. Họ tên in hoa tự động trên giấy.</p><form id="fxf">${field('name', 'Họ tên', r.changes.name ?? r.cur_name, { required: true, max: 160 })}${field('org', 'Chức vụ, đơn vị', r.changes.org ?? r.cur_org, { max: 200 })}${field('reply', 'Ghi chú (không bắt buộc)', '', { max: 300 })}<p class="hint">Cần sửa số tiền, ngày, dự án? Mở giấy ở mục Giấy chứng nhận để sửa; mọi thay đổi đều được ghi lại.</p><p class="err" hidden></p><div class="modal-acts"><button type="button" class="btn ghost" onclick="this.closest('.modal').hidden=true">Để sau</button><button class="btn">Duyệt và cập nhật giấy</button></div></form>`);
+      $('#fxf', m).addEventListener('submit', async e => {
+        e.preventDefault(); const f = e.target.elements;
+        try { await api('/api/admin/cert-requests', { action: 'approve', id: r.id, name: f.name.value, org: f.org.value, reply: f.reply.value }); modal.close(); toast('Đã cập nhật giấy ' + r.code); route(); }
+        catch (err) { const p = $('.err', m); p.textContent = err.message; p.hidden = false; }
+      });
+    });
+    $$('[data-fno]', main).forEach(b => b.onclick = async () => {
+      const reply = prompt('Lý do từ chối (không bắt buộc):', '');
+      if (reply === null) return;
+      try { await api('/api/admin/cert-requests', { action: 'reject', id: b.dataset.fno, reply }); toast('Đã từ chối'); route(); } catch (x) { fail(x); }
+    });
   }
 
   // ---------- Duyệt ủng hộ (thủ công, không cần sao kê) ----------

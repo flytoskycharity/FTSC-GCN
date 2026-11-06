@@ -1,7 +1,6 @@
 // Xác thực giấy: dùng chung cho trang /xac-thuc, kiểm tra giấy tải lên và nhật ký sai phạm.
 import { equal, normCode, codePath, randomHex, clip } from './util.js';
-import { certValues, templateOf, FIELD_KEYS, IMAGE_KEYS } from './certs.js';
-import { qrSvg } from './qr.js';
+import { certValues, templateOf, FIELD_KEYS, IMAGE_KEYS, certImagePath } from './certs.js';
 
 export async function findCert(env, code, s) {
   const c = await env.DB.prepare('SELECT * FROM certificates WHERE code=?').bind(normCode(code)).first();
@@ -10,15 +9,13 @@ export async function findCert(env, code, s) {
   return { c, state };
 }
 
-// Dữ liệu để trình duyệt dựng lại giấy gốc (canvas) và so với giấy tải lên.
-export async function renderData(env, settings, origin, c) {
+// Dữ liệu để trình duyệt so giấy tải lên với ảnh giấy gốc đã ghép sẵn (không gửi nền trống, chữ ký, con dấu).
+export async function renderData(env, settings, c, signed) {
   const tpl = await templateOf(env, c), v = certValues(settings, c);
   const fields = (tpl.fields || []).filter(f => f.visible !== false);
   return {
-    tpl: { background: tpl.background, width: tpl.width, height: tpl.height, fields },
-    values: v,
-    images: { qr: 'data:image/svg+xml;utf8,' + encodeURIComponent(qrSvg(`${origin}/xac-thuc/${codePath(c.code)}?s=${c.sig}`, { dark: '#000', level: 'M', border: 2 })), signature: settings.cert.signature || '', stamp: settings.cert.stamp || '' },
-    fonts: [settings.theme.fontHeading, settings.theme.fontBody], file: c.code,
+    width: tpl.width, height: tpl.height, file: c.code,
+    image: signed && c.img_ok && c.cert_image ? certImagePath(c) : '',
     // Các dòng chữ để so từng dòng (bỏ ảnh QR, chữ ký, con dấu).
     rows: fields.filter(f => !IMAGE_KEYS.includes(f.key)).map(f => {
       const text = f.key === 'text' ? (f.text || '') : ((f.prefix || '') + (v[f.key] || ''));

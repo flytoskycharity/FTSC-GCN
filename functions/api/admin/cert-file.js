@@ -51,7 +51,7 @@ export const onRequestDelete = adminApi('edit', async ({ request, env, me }) => 
   const c = await env.DB.prepare('SELECT code, doc_file FROM certificates WHERE id=?').bind(id).first();
   if (!c) return json({ error: 'Không tìm thấy giấy chứng nhận.' }, 404);
   if (c.doc_file && env.MEDIA) await env.MEDIA.delete(c.doc_file).catch(() => {});
-  await env.DB.prepare("UPDATE certificates SET doc_kind='', doc_type='', doc_file='', doc_mime='', doc_hash='', doc_sig='' WHERE id=?").bind(id).run();
+  await env.DB.prepare("UPDATE certificates SET doc_kind='', doc_type='', doc_file='', doc_mime='', doc_hash='', doc_sig='', img_ok=0 WHERE id=?").bind(id).run();
   await log(env, me, 'gỡ tệp giấy của ' + c.code);
   return json({ ok: true });
 });
