@@ -1,0 +1,71 @@
+// Nội dung gốc của cổng. Mọi mục ở đây đều sửa được trong trang quản trị (Cài đặt).
+export default {
+  site: {
+    title: 'Cổng tra cứu thông tin Giấy chứng nhận của Hệ thống từ thiện Fly To Sky',
+    shortTitle: 'Tra cứu Giấy chứng nhận',
+    kicker: 'Hệ thống từ thiện Fly To Sky',
+    operator: 'Phòng Tổ chức - Hành chính Công ty & Ban Tổ chức - Hành chính Nhóm từ thiện Fly To Sky',
+    owner: 'Hệ thống từ thiện Fly To Sky',
+    intro: 'Tra cứu Giấy chứng nhận ủng hộ, Giấy xác nhận tài trợ và Giấy chứng nhận tình nguyện viên do Hệ thống từ thiện Fly To Sky cấp. Nhập số điện thoại, họ tên hoặc mã giấy.',
+    support: 'Cần hỗ trợ, vui lòng liên hệ Zalo 0375.136.800.',
+    url: 'https://certificates.flytoskycharity.vn',
+  },
+  theme: {
+    primary: '#006379', primaryDark: '#00333f', accent: '#f38234',
+    paper: '#faf6ee', tint: '#e8f3f3', ink: '#14333c',
+    fontHeading: 'Source Serif 4', fontBody: 'Manrope',
+  },
+  contact: {
+    phones: ['0375 136 800', '0935 939 446'],
+    emails: ['lienhe@flytoskycharity.vn', 'donghanh@flytoskycharity.vn'],
+    website: 'https://flytoskycharity.vn',
+    links: [
+      { label: 'Website Fly To Sky', href: 'https://flytoskycharity.vn' },
+      { label: 'Zalo Official Account', href: 'https://zalo.me/flytoskycharity' },
+      { label: 'Fanpage Facebook', href: 'https://www.facebook.com/flytoskycharity' },
+      { label: 'Cộng đồng Fly To Sky', href: 'https://www.facebook.com/groups/392919558235980' },
+      { label: 'Tủ sách Bồ Câu Trắng', href: 'https://khuyendoc.flytoskycharity.vn' },
+    ],
+    offices: [
+      { label: 'Văn phòng Tổng', value: '145/14/4 Thống Nhất, tổ 4, phường Diên Hồng, tỉnh Gia Lai, Việt Nam' },
+      { label: 'Văn phòng đại diện tại Hà Nội', value: 'Tầng 5, số 124 ngõ 34 Hoàng Cầu, phường Ô Chợ Dừa, TP. Hà Nội, Việt Nam' },
+    ],
+    legalName: 'Công ty TNHH Doanh nghiệp xã hội từ thiện và hỗ trợ phát triển cộng đồng Fly To Sky',
+    taxNote: 'Mã số doanh nghiệp 5901213612 do Sở Kế hoạch và Đầu tư tỉnh Gia Lai cấp',
+    about: 'Hệ thống từ thiện Fly To Sky gồm Công ty TNHH Doanh nghiệp xã hội từ thiện và hỗ trợ phát triển cộng đồng Fly To Sky và Nhóm từ thiện Fly To Sky.',
+    motto: 'Lan tỏa yêu thương và kết nối tới cộng đồng.',
+  },
+  bank: {
+    name: 'Ngân hàng TMCP Quân đội - MBBank',
+    bin: '970422',
+    account: '9446',
+    holder: 'Công ty TNHH Doanh nghiệp xã hội từ thiện và hỗ trợ phát triển cộng đồng Fly To Sky',
+  },
+  statement: {
+    title: 'Sao kê tài khoản minh bạch',
+    lead: 'Theo dõi sao kê tài khoản nhận ủng hộ, cập nhật trực tiếp từ nền tảng Thiện Nguyện.',
+    embed: 'https://thiennguyen.app/doi-tac/minh-bach-tai-khoan/9446',
+  },
+  // Đọc sao kê tự động để cấp GCN. Dùng cùng địa chỉ dữ liệu sao kê với Khuyendoc.
+  sync: { enabled: false, url: '', lookbackDays: 14, startDate: '' },
+  donate: {
+    amounts: [50000, 100000, 200000, 500000, 1000000, 2000000],
+    minAmount: 10000,
+    anonymousName: 'Nhà hảo tâm',
+    note: 'Sau khi chuyển khoản đúng cú pháp, hệ thống tự đối soát sao kê và cấp Giấy chứng nhận điện tử. Bạn tra cứu được ngay trên cổng này.',
+  },
+  cert: {
+    prefix: 'FTS',
+    maskPhone: true,
+    signerName: 'Lê Văn Phúc',
+    signerTitle: 'Giám đốc Công ty TNHH Doanh nghiệp xã hội từ thiện và hỗ trợ phát triển cộng đồng Fly To Sky',
+    signature: '',
+    stamp: '',
+    programText: 'Đã tham gia chương trình',
+  },
+  // Các hệ thống khác cùng cấp giấy, tra cứu chung một lần.
+  sources: {
+    khuyendoc: { enabled: true, label: 'Tủ sách Bồ Câu Trắng', url: 'https://khuyendoc.flytoskycharity.vn' },
+    workspace: { enabled: true, label: 'FTS Workspace', url: 'https://workspace.flytoskycharity.vn' },
+  },
+};
