@@ -79,6 +79,8 @@ function upgrade(s, wasSaved) {
   // Bản đầu dùng màu cam của Khuyendoc: chuyển về màu xanh Fly To Sky nếu admin chưa đổi màu.
   if (String(s.theme.accent).toLowerCase() === '#f38234') s.theme = { ...defaults.theme, fontHeading: s.theme.fontHeading, fontBody: s.theme.fontBody };
   for (const l of defaults.contact.links) if (/info\.flytoskycharity|benvung360/.test(l.href) && Array.isArray(s.contact.links) && !s.contact.links.some(x => x.href && x.href.replace(/\/$/, '') === l.href.replace(/\/$/, ''))) s.contact.links.splice(1, 0, { ...l });
+  // Bản trước ghi chú dưới QR là "hệ thống tự đối soát…": đổi sang lời nhắn giữ nội dung + nút đã chuyển tiền.
+  if (/tự đối soát sao kê và cấp Giấy chứng nhận điện tử/.test(s.donate.note || '')) s.donate.note = defaults.donate.note;
   const hcm = defaults.contact.offices.find(o => o.label.includes('TP.HCM'));
   if (hcm && Array.isArray(s.contact.offices) && !s.contact.offices.some(o => /H[ồo] Ch[íi] Minh|TP\.?HCM/i.test(o.label + o.value))) s.contact.offices.push({ ...hcm });
   return s;

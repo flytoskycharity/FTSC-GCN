@@ -67,7 +67,8 @@ export default {
     anonymousName: 'Nhà hảo tâm',
     title: 'Quyên góp cùng Fly To Sky',
     lead: 'Chọn Quỹ chung các dự án hoặc một dự án đang kêu gọi, nhập thông tin và quét mã QR để chuyển khoản. Giấy chứng nhận được cấp tự động khi tiền về.',
-    note: 'Sau khi chuyển khoản đúng nội dung, hệ thống tự đối soát sao kê và cấp Giấy chứng nhận điện tử. Bạn tra cứu được ngay trên cổng này.',
+    note: 'Vui lòng giữ nguyên nội dung chuyển khoản. Chuyển xong, bạn bấm nút “Tôi đã chuyển tiền” bên dưới.',
+    paidNote: 'Cảm ơn bạn đã quyên góp! Trong vòng 24 giờ, bạn vào Tra cứu, tìm theo số điện thoại hoặc họ tên để xem Giấy chứng nhận.',
     donorTypes: [
       { id: 'ca-nhan', label: 'Cá nhân' }, { id: 'to-chuc', label: 'Tổ chức' }, { id: 'doanh-nghiep', label: 'Doanh nghiệp' },
       { id: 'nhom', label: 'Nhóm cá nhân' }, { id: 'fandom', label: 'Fandom / Cộng đồng người hâm mộ' },

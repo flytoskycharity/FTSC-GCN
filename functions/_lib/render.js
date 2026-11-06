@@ -129,7 +129,7 @@ export function renderLookup(x, q, tab) {
 export function donateBlock(x, targets, selectedId, benefits, locked) {
   const D = x.s.donate, sel = targets.find(t => t.id == selectedId) || targets[0];
   const units = Object.fromEntries(targets.filter(t => Number(t.unit_price) > 0 && t.unit_name).map(t => [t.id, { price: Number(t.unit_price), name: t.unit_name, strict: !!t.unit_strict }]));
-  const cfg = { min: Number(D.minAmount) || 0, confirmMin: Number(D.confirmMin) || 0, benefits, thanks: D.thanks, note: D.note, amounts: (D.amounts || []).map(Number), units };
+  const cfg = { min: Number(D.minAmount) || 0, confirmMin: Number(D.confirmMin) || 0, benefits, thanks: D.thanks, note: D.note, paidNote: D.paidNote, amounts: (D.amounts || []).map(Number), units };
   const amounts = (D.amounts || []).map(a => `<button type="button" class="amt" data-v="${Number(a)}">${esc(Number(a).toLocaleString('vi-VN'))}</button>`).join('');
   return `<div class="don" id="ung-ho"><form id="donForm" novalidate>${locked ? `<input type="hidden" name="campaign" value="${sel.id}"><h2>Ủng hộ dự án</h2>` : `<label class="fl"><span>Ủng hộ cho</span><select name="campaign">${targets.map(t => `<option value="${t.id}"${t.id === sel.id ? ' selected' : ''}>${esc(t.title)}</option>`).join('')}</select></label>`}
 <fieldset class="fl"><legend>Bạn là</legend><div class="pills">${(D.donorTypes || []).map((d, i) => `<label><input type="radio" name="donorType" value="${esc(d.id)}"${i ? '' : ' checked'}><span>${esc(d.label)}</span></label>`).join('')}</div></fieldset>

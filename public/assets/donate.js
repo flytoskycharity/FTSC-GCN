@@ -58,7 +58,6 @@
   form.addEventListener('change', refresh);
   refresh();
 
-  let timer;
   form.addEventListener('submit', async e => {
     e.preventDefault();
     err.hidden = true;
@@ -83,27 +82,14 @@
 
   function show(d) {
     form.hidden = true; pay.hidden = false;
-    pay.innerHTML = `<div class="pay"><h2>Quét mã QR để chuyển khoản</h2><p class="fine">${esc(d.project)}${d.units ? ' · ' + esc(d.units) : ''}</p><div class="qr">${d.qr}</div><dl class="bank"><div><dt>Số tiền</dt><dd><b class="copy" data-copy="${d.amount}">${fmt(d.amount)}đ</b></dd></div><div><dt>Nội dung</dt><dd><code class="copy" data-copy="${esc(d.memo)}">${esc(d.memo)}</code></dd></div><div><dt>Số tài khoản</dt><dd><b class="copy" data-copy="${esc(d.bank.account)}">${esc(d.bank.account)}</b> · ${esc(d.bank.name)}</dd></div><div><dt>Chủ tài khoản</dt><dd>${esc(d.bank.holder)}</dd></div></dl><p class="fine">${esc(cfg.note)}${d.wantsConfirm ? ' Giấy xác nhận tài trợ được cấp sau 7–10 ngày và tải được khi tra cứu.' : ''}</p><p class="pay-st"><span class="spin"></span><span>Đang chờ tiền về tài khoản…</span></p><div class="btns" style="justify-content:center"><button type="button" class="btn btn-primary" id="paidBtn">Tôi đã chuyển khoản</button><button type="button" class="btn btn-ghost" id="donAgain">Ủng hộ lượt khác</button></div></div>`;
-    pay.querySelector('#donAgain').onclick = () => { clearTimeout(timer); pay.hidden = true; form.hidden = false; };
-    pay.querySelector('#paidBtn').onclick = async e => {
-      e.target.disabled = true; e.target.textContent = 'Đang kiểm tra sao kê…';
-      await fetch('/api/donate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reported', token: d.token }) }).catch(() => {});
-      clearTimeout(timer); poll();
+    pay.innerHTML = `<div class="pay"><h2>Quét mã QR để chuyển khoản</h2><p class="fine">${esc(d.project)}${d.units ? ' · ' + esc(d.units) : ''}</p><div class="qr">${d.qr}</div><dl class="bank"><div><dt>Số tiền</dt><dd><b class="copy" data-copy="${d.amount}">${fmt(d.amount)}đ</b></dd></div><div><dt>Nội dung</dt><dd><code class="copy" data-copy="${esc(d.memo)}">${esc(d.memo)}</code></dd></div><div><dt>Số tài khoản</dt><dd><b class="copy" data-copy="${esc(d.bank.account)}">${esc(d.bank.account)}</b> · ${esc(d.bank.name)}</dd></div><div><dt>Chủ tài khoản</dt><dd>${esc(d.bank.holder)}</dd></div></dl><p class="fine">${esc(cfg.note)}</p><div class="btns" style="justify-content:center"><button type="button" class="btn btn-primary" id="paidBtn">Tôi đã chuyển tiền</button><button type="button" class="btn btn-ghost" id="donAgain">Ủng hộ lượt khác</button></div></div>`;
+    pay.querySelector('#donAgain').onclick = () => { pay.hidden = true; form.hidden = false; };
+    // Bấm "Tôi đã chuyển tiền": ghi nhận để đối soát, không bắt người ủng hộ chờ sao kê.
+    pay.querySelector('#paidBtn').onclick = e => {
+      fetch('/api/donate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reported', token: d.token }) }).catch(() => {});
+      e.target.closest('.btns').outerHTML = `<div class="pay-ok"><p><b>${esc(cfg.paidNote || cfg.thanks)}</b></p>${d.wantsConfirm ? '<p>Giấy xác nhận tài trợ được cấp sau 7–10 ngày, tải được khi tra cứu.</p>' : ''}<div class="btns" style="justify-content:center"><a class="btn btn-primary" href="/tra-cuu">Đến trang Tra cứu</a><button type="button" class="btn btn-ghost" id="donAgain2">Ủng hộ lượt khác</button></div></div>`;
+      pay.querySelector('#donAgain2').onclick = () => { pay.hidden = true; form.hidden = false; };
     };
     pay.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    let tries = 0;
-    const poll = async () => {
-      if (++tries > 120) { pay.querySelector('.pay-st').innerHTML = 'Chưa nhận được giao dịch. Giấy sẽ được cấp khi hệ thống đối soát xong; bạn tra cứu lại bằng số điện thoại.'; return; }
-      try {
-        const s = await (await fetch('/api/donate?token=' + d.token)).json();
-        if (s.status === 'paid' && s.cert) {
-          pay.querySelector('.pay-st').outerHTML = `<div class="pay-ok"><p><b>${esc(cfg.thanks)}</b></p><p>Đã nhận ${fmt(s.paid)}đ. Giấy chứng nhận số <code>${esc(s.cert.code)}</code> đã được cấp.</p><a class="btn btn-primary" href="${esc(s.cert.url)}">Xem Giấy chứng nhận</a></div>`;
-          pay.querySelector('#paidBtn')?.remove();
-          return;
-        }
-      } catch { /* thử lại */ }
-      timer = setTimeout(poll, 15000);
-    };
-    timer = setTimeout(poll, 15000);
   }
 })();
