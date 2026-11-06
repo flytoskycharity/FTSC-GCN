@@ -74,7 +74,7 @@ function campaignCard(c) {
 }
 
 function fundCard(c) {
-  return `<article class="camp camp-fund"><a class="camp-img" href="/ung-ho"><span class="camp-ph">${ICON.heart}<b>Đồng hành cùng Fly To Sky</b></span></a><div class="camp-body"><span class="chip chip-live"><i></i>Luôn mở</span><h3><a href="/ung-ho">${esc(c.title)}</a></h3>${c.summary ? `<p class="camp-sum">${esc(c.summary)}</p>` : ''}<dl class="camp-facts"><div><dt>Cú pháp</dt><dd><code>${esc(c.memo_prefix)}</code> + SĐT</dd></div></dl>${c.raised > 0 ? `<p class="bar-meta"><span>Đã nhận <b>${esc(vnd(c.raised))}</b></span></p>` : ''}<a class="btn btn-accent btn-sm" href="/ung-ho">Đồng hành ngay</a></div></article>`;
+  return `<article class="camp camp-fund"><a class="camp-img" href="/ung-ho">${c.cover ? `<img src="${esc(c.cover)}" alt="" loading="lazy">` : `<span class="camp-ph">${ICON.heart}<b>Đồng hành cùng Fly To Sky</b></span>`}</a><div class="camp-body"><span class="chip chip-live"><i></i>Luôn mở</span><h3><a href="/ung-ho">${esc(c.title)}</a></h3>${c.summary ? `<p class="camp-sum">${esc(c.summary)}</p>` : ''}<dl class="camp-facts"><div><dt>Cú pháp</dt><dd><code>${esc(c.memo_prefix)}</code> + SĐT</dd></div></dl>${c.raised > 0 ? `<p class="bar-meta"><span>Đã nhận <b>${esc(vnd(c.raised))}</b></span></p>` : ''}<a class="btn btn-accent btn-sm" href="/ung-ho">Đồng hành ngay</a></div></article>`;
 }
 
 function newsBlock(x, news) {
