@@ -66,7 +66,7 @@ export default {
     minAmount: 10000,
     anonymousName: 'Nhà hảo tâm',
     title: 'Quyên góp cùng Fly To Sky',
-    lead: 'Chọn Quỹ chung các dự án hoặc một dự án đang kêu gọi, nhập thông tin và quét mã QR để chuyển khoản. Giấy chứng nhận được cấp tự động khi tiền về.',
+    lead: 'Chọn Quỹ chung các dự án hoặc một dự án đang kêu gọi, nhập thông tin và quét mã QR để chuyển khoản. Ban Tổ chức xác nhận và cấp Giấy chứng nhận trong vòng 24 giờ.',
     note: 'Vui lòng giữ nguyên nội dung chuyển khoản. Chuyển xong, bạn bấm nút “Tôi đã chuyển tiền” bên dưới.',
     paidNote: 'Cảm ơn bạn đã quyên góp! Trong vòng 24 giờ, bạn vào Tra cứu, tìm theo số điện thoại hoặc họ tên để xem Giấy chứng nhận.',
     donorTypes: [

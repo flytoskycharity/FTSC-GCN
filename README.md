@@ -14,9 +14,9 @@ Chạy trên **Cloudflare Pages** (cùng kiến trúc với Tủ sách Bồ Câu
   - GCN tình nguyện viên ở **FTS Workspace**.
 - **Chống làm giả**: mỗi giấy có mã ngẫu nhiên và mã xác thực HMAC (`CERT_SECRET`). QR trên giấy dẫn tới `/xac-thuc/<mã>?s=<mã xác thực>`; trang xác thực lấy dữ liệu gốc từ D1, dựng lại giấy và cho tải PDF/ảnh. Giấy bị thu hồi hiển thị rõ lý do. Sửa thông tin giữ nguyên mã và lưu lịch sử.
 - **Dự án kêu gọi**: trang `/du-an/<slug>` có tiến độ, đếm ngược, thông tin chuyển khoản, form ủng hộ tạo VietQR với cú pháp riêng `CÚPHÁP SĐT`.
-- **Cấp GCN tự động**: đọc sao kê (cùng nguồn JSON với Khuyendoc, hoặc dán tay), nhận ra cú pháp từng dự án, cấp GCN ngay khi tiền về.
+- **Duyệt ủng hộ thủ công**: người ủng hộ tạo mã QR, chuyển khoản, bấm “Tôi đã chuyển tiền”; admin xem app ngân hàng rồi bấm **Duyệt** (Admin → Duyệt ủng hộ) để cấp GCN. Đọc sao kê tự động chỉ là tùy chọn (mặc định tắt).
 - **Nhiều mẫu cho một dự án**: mẫu có “mức tiền tối thiểu”; hệ thống chọn mẫu cao nhất mà số tiền đạt tới, nhiều mẫu cùng mức thì chọn ngẫu nhiên. Trình sửa mẫu kéo thả ngay trong admin.
-- **Admin riêng** (không phải sửa mã): dự án, mẫu, giấy (cấp lẻ, cấp hàng loạt, sửa, thu hồi), giao dịch & đối soát, nhập dữ liệu cũ từ Google Sheets, cài đặt nội dung, tài khoản & nhật ký.
+- **Admin riêng** (không phải sửa mã): dự án, mẫu, giấy (cấp lẻ, cấp hàng loạt, sửa, thu hồi), duyệt ủng hộ, nhập dữ liệu cũ từ Google Sheets, cài đặt nội dung, tài khoản & nhật ký.
 
 ## Tệp giấy cấp ở nơi khác & chữ ký số
 Admin → Giấy chứng nhận → Sửa → **Tệp giấy đã cấp**: chọn loại (Giấy khen / Giấy chứng nhận / Khác) và hình thức. Chỉ nhận 2 hình thức:

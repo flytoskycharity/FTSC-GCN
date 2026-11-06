@@ -100,12 +100,12 @@ export function parsePasted(campaigns, text) {
 const isoOf = d => /^\d{4}-\d{2}-\d{2}/.test(d) ? d.slice(0, 10) : (m => m ? `${m[3]}-${m[2]}-${m[1]}` : vnToday())(String(d).match(/(\d{2})\/(\d{2})\/(\d{4})/));
 
 // Ghi nhận đã nhận tiền cho một lượt ủng hộ và cấp GCN.
-export async function payDonation(env, settings, donation, campaign, amount, txId, iso) {
+export async function payDonation(env, settings, donation, campaign, amount, txId, iso, { source = 'auto', by = 'hệ thống' } = {}) {
   await env.DB.prepare("UPDATE donations SET status='paid', paid_amount=?, paid_at=?, tx_id=? WHERE id=?").bind(amount, iso, txId || '', donation.id).run();
   if (donation.cert_id) return donation.cert_id;
   const cert = await issueCertificate(env, settings, {
     campaign, name: donation.name, phone: donation.phone, org: [...new Set([donation.position, donation.org].map(v => String(v || '').trim()).filter(Boolean))].join(', '), amount, issued_date: iso,
-    source: 'auto', donation_id: donation.id, created_by: 'hệ thống',
+    source, donation_id: donation.id, created_by: by,
   });
   await env.DB.prepare('UPDATE donations SET cert_id=? WHERE id=?').bind(cert.id, donation.id).run();
   return cert.id;

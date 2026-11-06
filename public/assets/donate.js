@@ -1,5 +1,5 @@
 // Biểu mẫu quyên góp: chọn Quỹ chung/dự án, đối tượng, số tiền → quyền lợi tương ứng → tạo mã VietQR đúng cú pháp,
-// rồi chờ hệ thống đối soát sao kê để trả Giấy chứng nhận.
+// rồi bấm "Tôi đã chuyển tiền"; Ban Tổ chức duyệt và cấp Giấy chứng nhận, người ủng hộ tra cứu trong 24 giờ.
 (() => {
   const form = document.getElementById('donForm'), pay = document.getElementById('donPay');
   if (!form) return;
@@ -84,7 +84,7 @@
     form.hidden = true; pay.hidden = false;
     pay.innerHTML = `<div class="pay"><h2>Quét mã QR để chuyển khoản</h2><p class="fine">${esc(d.project)}${d.units ? ' · ' + esc(d.units) : ''}</p><div class="qr">${d.qr}</div><dl class="bank"><div><dt>Số tiền</dt><dd><b class="copy" data-copy="${d.amount}">${fmt(d.amount)}đ</b></dd></div><div><dt>Nội dung</dt><dd><code class="copy" data-copy="${esc(d.memo)}">${esc(d.memo)}</code></dd></div><div><dt>Số tài khoản</dt><dd><b class="copy" data-copy="${esc(d.bank.account)}">${esc(d.bank.account)}</b> · ${esc(d.bank.name)}</dd></div><div><dt>Chủ tài khoản</dt><dd>${esc(d.bank.holder)}</dd></div></dl><p class="fine">${esc(cfg.note)}</p><div class="btns" style="justify-content:center"><button type="button" class="btn btn-primary" id="paidBtn">Tôi đã chuyển tiền</button><button type="button" class="btn btn-ghost" id="donAgain">Ủng hộ lượt khác</button></div></div>`;
     pay.querySelector('#donAgain').onclick = () => { pay.hidden = true; form.hidden = false; };
-    // Bấm "Tôi đã chuyển tiền": ghi nhận để đối soát, không bắt người ủng hộ chờ sao kê.
+    // Bấm "Tôi đã chuyển tiền": đánh dấu để admin ưu tiên duyệt, không bắt người ủng hộ chờ.
     pay.querySelector('#paidBtn').onclick = e => {
       fetch('/api/donate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reported', token: d.token }) }).catch(() => {});
       e.target.closest('.btns').outerHTML = `<div class="pay-ok"><p><b>${esc(cfg.paidNote || cfg.thanks)}</b></p>${d.wantsConfirm ? '<p>Giấy xác nhận tài trợ được cấp sau 7–10 ngày, tải được khi tra cứu.</p>' : ''}<div class="btns" style="justify-content:center"><a class="btn btn-primary" href="/tra-cuu">Đến trang Tra cứu</a><button type="button" class="btn btn-ghost" id="donAgain2">Ủng hộ lượt khác</button></div></div>`;

@@ -81,6 +81,7 @@ function upgrade(s, wasSaved) {
   for (const l of defaults.contact.links) if (/info\.flytoskycharity|benvung360/.test(l.href) && Array.isArray(s.contact.links) && !s.contact.links.some(x => x.href && x.href.replace(/\/$/, '') === l.href.replace(/\/$/, ''))) s.contact.links.splice(1, 0, { ...l });
   // Bản trước ghi chú dưới QR là "hệ thống tự đối soát…": đổi sang lời nhắn giữ nội dung + nút đã chuyển tiền.
   if (/tự đối soát sao kê và cấp Giấy chứng nhận điện tử/.test(s.donate.note || '')) s.donate.note = defaults.donate.note;
+  if (/được cấp tự động khi tiền về/.test(s.donate.lead || '')) s.donate.lead = defaults.donate.lead;
   const hcm = defaults.contact.offices.find(o => o.label.includes('TP.HCM'));
   if (hcm && Array.isArray(s.contact.offices) && !s.contact.offices.some(o => /H[ồo] Ch[íi] Minh|TP\.?HCM/i.test(o.label + o.value))) s.contact.offices.push({ ...hcm });
   return s;
@@ -103,5 +104,7 @@ export async function setState(env, key, value) {
 // Số tiền đã nhận của dự án: giao dịch sao kê đã gán dự án + phần nhập tay.
 export async function raisedOf(env, campaign) {
   const r = await env.DB.prepare("SELECT COALESCE(SUM(amount),0) s FROM bank_tx WHERE campaign_id=? AND status IN ('matched','unmatched')").bind(campaign.id).first();
-  return (r?.s || 0) + (Number(campaign.raised_offset) || 0);
+  // Lượt ủng hộ admin duyệt tay (không qua sao kê) cũng tính vào số đã nhận.
+  const m = await env.DB.prepare("SELECT COALESCE(SUM(paid_amount),0) s FROM donations WHERE campaign_id=? AND status='paid' AND tx_id=''").bind(campaign.id).first();
+  return (r?.s || 0) + (m?.s || 0) + (Number(campaign.raised_offset) || 0);
 }

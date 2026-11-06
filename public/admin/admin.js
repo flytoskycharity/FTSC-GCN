@@ -118,7 +118,7 @@
   // ---------- khung ----------
   const TABS = [
     ['tong-quan', 'Tổng quan', overview], ['du-an', 'Dự án kêu gọi', campaignsView], ['mau', 'Mẫu Giấy chứng nhận', templatesView],
-    ['giay', 'Giấy chứng nhận', certsView], ['nhat-ky', 'Nhật ký xác thực', logsView], ['giao-dich', 'Giao dịch & đối soát', txView], ['nhap', 'Nhập dữ liệu cũ', importView],
+    ['duyet', 'Duyệt ủng hộ', approveView], ['giay', 'Giấy chứng nhận', certsView], ['nhat-ky', 'Nhật ký xác thực', logsView], ['giao-dich', 'Sao kê (không bắt buộc)', txView], ['nhap', 'Nhập dữ liệu cũ', importView],
     ['cai-dat', 'Cài đặt', settingsView, true], ['tai-khoan', 'Tài khoản & nhật ký', usersView, true],
   ];
   function shell() {
@@ -146,7 +146,7 @@
     main.innerHTML = top('Tổng quan', 'Cổng tra cứu Giấy chứng nhận của Hệ thống từ thiện Fly To Sky', canEdit() ? '<a class="btn accent" href="#giay/new">+ Cấp giấy</a><a class="btn ghost" href="#du-an/new">+ Dự án</a>' : '') +
       `<div class="stats"><div class="stat"><b>${d.certs}</b><span>Giấy chứng nhận</span></div><div class="stat"><b>${d.month}</b><span>Cấp trong 30 ngày</span></div><div class="stat"><b>${d.open}/${d.campaigns}</b><span>Dự án đang mở / tổng</span></div><div class="stat${d.unmatched ? ' warn' : ''}"><b>${d.unmatched}</b><span>Giao dịch chưa nhận diện</span></div><div class="stat"><b>${d.pending}</b><span>Đăng ký ủng hộ chờ tiền</span></div><div class="stat"><b>${d.revoked}</b><span>Giấy đã thu hồi</span></div><a class="stat${d.suspicious ? ' warn' : ''}" href="#nhat-ky" style="text-decoration:none;color:inherit"><b>${d.suspicious}</b><span>Xác thực sai/lỗi chờ xử lý</span></a></div>
       <div class="grid2"><div class="card"><h2>Giấy cấp gần đây</h2><div class="tbl"><table><tbody>${d.recent.map(c => `<tr><td><b>${esc(c.name)}</b><span class="sub">${esc(c.campaign_name)}</span></td><td><a href="/xac-thuc/${c.code.split('/').map(encodeURIComponent).join('/')}?s=${c.sig}" target="_blank"><code>${esc(c.code)}</code></a><span class="sub">${dmy(c.issued_date)}</span></td><td>${c.amount ? vnd(c.amount) : esc(c.amount_text)}</td></tr>`).join('') || '<tr><td class="empty">Chưa có giấy nào</td></tr>'}</tbody></table></div></div>
-      <div class="card"><h2>Đối soát sao kê</h2><p>${sync}</p><p><a href="#giao-dich">Mở Giao dịch & đối soát →</a></p><h3 style="margin-top:18px">Hoạt động gần đây</h3><div class="tbl"><table><tbody>${d.audit.map(a => `<tr><td>${esc(a.actor)}</td><td>${esc(a.action)}</td><td class="sub">${dmy(a.at)}</td></tr>`).join('')}</tbody></table></div></div></div>`;
+      <div class="card"><h2>Duyệt ủng hộ</h2><p>${d.pending ? `Có <b>${d.pending}</b> lượt ủng hộ đang chờ duyệt.` : 'Không có lượt nào chờ duyệt.'}</p><p><a href="#duyet">Mở Duyệt ủng hộ →</a></p><h3 style="margin-top:18px">Hoạt động gần đây</h3><div class="tbl"><table><tbody>${d.audit.map(a => `<tr><td>${esc(a.actor)}</td><td>${esc(a.action)}</td><td class="sub">${dmy(a.at)}</td></tr>`).join('')}</tbody></table></div></div></div>`;
   }
 
   // ---------- Dự án ----------
@@ -392,6 +392,34 @@
     $$('[data-reopen]', main).forEach(b => b.onclick = async () => { try { await api('/api/admin/verify-logs', { action: 'reopen', id: b.dataset.reopen }); logsView(main); } catch (x) { fail(x); } });
   }
 
+  // ---------- Duyệt ủng hộ (thủ công, không cần sao kê) ----------
+  const DST = { pending: ['Chờ duyệt', 'warn'], paid: ['Đã duyệt', 'ok'], cancelled: ['Đã hủy', 'mute'] };
+  async function approveView(main, arg) {
+    await loadCampaigns();
+    const [view, q = ''] = String(arg || 'pending').split('?q=');
+    const d = await api('/api/admin/transactions?view=donations' + (view === 'all' ? '' : '&status=' + view) + (q ? '&q=' + encodeURIComponent(q) : ''));
+    const cnt = d.counts || {};
+    const tabs = [['pending', `Chờ duyệt (${cnt.pending || 0})`], ['paid', `Đã duyệt (${cnt.paid || 0})`], ['cancelled', `Đã hủy (${cnt.cancelled || 0})`], ['all', 'Tất cả']];
+    main.innerHTML = top('Duyệt ủng hộ', 'Mở app ngân hàng, thấy tiền đã về đúng nội dung chuyển khoản thì bấm <b>Duyệt</b>: hệ thống cấp Giấy chứng nhận ngay, người ủng hộ tra cứu được. Lượt nào không thấy tiền thì bấm <b>Hủy</b>.') +
+      `<div class="filters">${tabs.map(([k, l]) => `<a class="btn sm ${k === view ? '' : 'ghost'}" href="#duyet/${k}">${l}</a>`).join('')}<form id="dq" class="row" style="margin-left:auto"><input name="q" value="${esc(q)}" placeholder="Tìm tên, SĐT, nội dung CK"><button class="btn sm ghost">Tìm</button></form></div>` +
+      `<div class="card tbl"><table><thead><tr><th>Lúc đăng ký</th><th>Người ủng hộ</th><th>Dự án</th><th>Số tiền</th><th>Nội dung CK</th><th>Trạng thái</th><th>Giấy xác nhận tài trợ</th></tr></thead><tbody>${d.items.map(x => `<tr><td>${dmy(x.created_at)}${x.reported_at ? '<span class="tag ok" style="display:block;margin-top:4px">Đã báo chuyển tiền</span>' : ''}</td><td><b>${esc(x.name)}</b><span class="sub">${esc(DT[x.donor_type] || x.donor_type || '')}${x.position ? ' · ' + esc(x.position) : ''}</span><span class="sub">${esc(x.phone)} ${esc(x.email)}</span>${x.tax_code ? `<span class="sub">MST ${esc(x.tax_code)} · ${esc(x.address)}</span>` : ''}${x.message ? `<span class="sub">“${esc(x.message)}”</span>` : ''}</td><td>${esc(x.campaign || '')}</td><td><b>${vnd(x.amount)}</b>${x.paid_amount && x.paid_amount !== x.amount ? `<span class="sub">Thực nhận ${vnd(x.paid_amount)}</span>` : ''}</td><td><code>${esc(x.memo)}</code></td><td><span class="tag ${(DST[x.status] || [])[1] || 'mute'}">${(DST[x.status] || [x.status])[0]}</span>${x.cert_code ? `<br><a href="${esc(x.cert_url)}" target="_blank"><code>${esc(x.cert_code)}</code></a>` : ''}${canEdit() && x.status === 'pending' ? `<div class="row" style="margin-top:6px"><button class="btn sm" data-ok="${x.id}">Duyệt</button><button class="btn sm ghost" data-cancel="${x.id}">Hủy</button></div>` : ''}${canEdit() && x.status === 'cancelled' ? `<br><button class="btn sm link" data-restore="${x.id}">Khôi phục</button>` : ''}</td><td>${x.wants_confirm ? (x.confirm_file ? `<span class="tag ok">Đã cấp</span> <a href="${esc(x.confirm_file)}" target="_blank">Xem</a>` : '<span class="tag warn">Chờ cấp</span>') + (canEdit() ? `<div class="upl" style="margin-top:6px"><input type="hidden" value="${esc(x.confirm_file || '')}" data-gxn="${x.id}"><button type="button" class="btn ghost sm" data-upload="gxn${x.id}" data-folder="confirm">Tải GXN lên</button></div>` : '') : '—'}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Không có lượt ủng hộ nào.</td></tr>'}</tbody></table></div>`;
+    $('#dq').addEventListener('submit', e => { e.preventDefault(); location.hash = `duyet/${view}?q=` + encodeURIComponent(e.target.elements.q.value.trim()); });
+    $$('[data-ok]', main).forEach(b => b.onclick = () => approveDonation(d.items.find(x => String(x.id) === b.dataset.ok)));
+    $$('[data-cancel]', main).forEach(b => b.onclick = async () => { if (!confirm('Hủy lượt ủng hộ này (không thấy tiền về)?')) return; try { await api('/api/admin/transactions', { action: 'cancelDonation', donation: b.dataset.cancel }); toast('Đã hủy'); route(); } catch (x) { fail(x); } });
+    $$('[data-restore]', main).forEach(b => b.onclick = async () => { try { await api('/api/admin/transactions', { action: 'restoreDonation', donation: b.dataset.restore }); route(); } catch (x) { fail(x); } });
+    $$('[data-gxn]', main).forEach(inp => inp.addEventListener('change', async () => { try { await api('/api/admin/transactions', { action: 'confirm', donation: inp.dataset.gxn, file: inp.value }); toast('Đã gắn Giấy xác nhận tài trợ'); route(); } catch (x) { fail(x); } }));
+  }
+  function approveDonation(x) {
+    const today = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+    const opts = campaigns.filter(c => !c.external_url).map(c => [c.id, c.title]);
+    const m = modal.open(`<h2>Duyệt lượt ủng hộ</h2><p class="hint">Nội dung chuyển khoản: <code>${esc(x.memo)}</code> · Đăng ký <b>${vnd(x.amount)}</b>. Kiểm tra trên app ngân hàng rồi nhập <b>số tiền thực nhận</b>.</p><form id="apf">${field('name', 'Họ tên in trên Giấy chứng nhận *', x.name, { required: true, max: 160 })}${field('campaign', 'Dự án', x.campaign_id, { options: opts })}<div class="fg">${field('amount', 'Số tiền thực nhận (VNĐ) *', x.amount, { required: true })}${field('date', 'Ngày nhận', today, { type: 'date' })}</div><p class="err" hidden></p><div class="modal-acts"><button type="button" class="btn ghost" onclick="this.closest('.modal').hidden=true">Để sau</button><button class="btn">Duyệt và cấp GCN</button></div></form>`);
+    $('#apf', m).addEventListener('submit', async e => {
+      e.preventDefault(); const f = e.target.elements, btn = e.submitter; if (btn) btn.disabled = true;
+      try { const r = await api('/api/admin/transactions', { action: 'approve', donation: x.id, name: f.name.value, campaign: f.campaign.value, amount: f.amount.value, date: f.date.value }); modal.close(); toast('Đã cấp ' + r.code); route(); }
+      catch (err) { const p = $('.err', m); p.textContent = err.message; p.hidden = false; if (btn) btn.disabled = false; }
+    });
+  }
+
   // ---------- Giao dịch ----------
   const TXS = { unmatched: ['Chưa nhận diện', 'warn'], matched: ['Đã cấp GCN', 'ok'], ignored: ['Bỏ qua', 'mute'], other: ['Không thuộc dự án', 'mute'] };
   async function txView(main, arg) {
@@ -400,8 +428,8 @@
     const isDon = view === 'donations';
     const d = await api('/api/admin/transactions?' + (isDon ? 'view=donations' : view === 'all' ? '' : 'status=' + view));
     const sync = d.sync?.at ? `Lần đồng bộ gần nhất: ${new Date(d.sync.at).toLocaleString('vi-VN')} — ${d.sync.ok ? `đọc ${d.sync.count} giao dịch, ${d.sync.added || 0} mới, cấp ${d.sync.matched || 0} GCN` : 'lỗi: ' + esc(d.sync.error || '')}` : 'Chưa đồng bộ lần nào.';
-    const tabs = [['unmatched', 'Chưa nhận diện'], ['matched', 'Đã cấp GCN'], ['all', 'Tất cả giao dịch dự án'], ['other', 'Không thuộc dự án'], ['donations', 'Đăng ký ủng hộ']];
-    main.innerHTML = top('Giao dịch & đối soát', 'Hệ thống đọc sao kê, nhận ra cú pháp từng dự án (<code>CÚ PHÁP SĐT</code>) và cấp Giấy chứng nhận tự động.', canEdit() ? '<button class="btn accent" id="syncB">Đồng bộ sao kê ngay</button><button class="btn ghost" id="pasteB">Dán sao kê</button>' : '') +
+    const tabs = [['unmatched', 'Chưa nhận diện'], ['matched', 'Đã cấp GCN'], ['all', 'Tất cả giao dịch dự án'], ['other', 'Không thuộc dự án']];
+    main.innerHTML = top('Sao kê (không bắt buộc)', 'Chỉ dùng khi có nguồn dữ liệu sao kê. Bình thường bạn duyệt từng lượt ở mục <a href="#duyet">Duyệt ủng hộ</a>.', canEdit() ? '<button class="btn accent" id="syncB">Đồng bộ sao kê ngay</button><button class="btn ghost" id="pasteB">Dán sao kê</button>' : '') +
       `<div class="card"><p style="margin:0">${sync}</p>${d.syncUrl ? '' : '<p class="sub">Chưa cấu hình địa chỉ dữ liệu sao kê (Cài đặt → Đối soát sao kê). Có thể dán sao kê tay.</p>'}</div><div class="filters">${tabs.map(([k, l]) => `<a class="btn sm ${k === view ? '' : 'ghost'}" href="#giao-dich/${k}">${l}</a>`).join('')}</div><div class="card tbl">${isDon ? donTable(d.items) : txTable(d.items)}</div>`;
     $('#syncB')?.addEventListener('click', async e => { e.target.disabled = true; try { const r = await api('/api/admin/transactions', { action: 'sync' }); toast(`Đọc ${r.count} giao dịch, ${r.added} mới, cấp ${r.matched} GCN`); route(); } catch (x) { fail(x); e.target.disabled = false; } });
     $('#pasteB')?.addEventListener('click', () => {

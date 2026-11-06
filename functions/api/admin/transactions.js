@@ -1,8 +1,8 @@
 // Giao dịch sao kê và lượt đăng ký ủng hộ: đồng bộ, dán sao kê tay, gán giao dịch chưa nhận diện để cấp GCN.
 import { adminApi, log } from '../../_lib/auth.js';
 import { loadSettings, getState, setState } from '../../_lib/db.js';
-import { json, readJson, clip, normPhone } from '../../_lib/util.js';
-import { syncBank, applyTx, parsePasted, statementUrl, fetchStatement } from '../../_lib/bank.js';
+import { json, readJson, clip, normPhone, vnToday } from '../../_lib/util.js';
+import { syncBank, applyTx, parsePasted, statementUrl, fetchStatement, payDonation } from '../../_lib/bank.js';
 import { issueCertificate, verifyPath } from '../../_lib/certs.js';
 import { campaignById } from '../../_lib/campaigns.js';
 
@@ -10,9 +10,13 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
   if (request.method === 'GET') {
     const u = new URL(request.url), view = u.searchParams.get('view') || 'tx', status = u.searchParams.get('status') || '';
     if (view === 'donations') {
+      const q = clip(u.searchParams.get('q'), 80).trim(), where = [], args = [];
+      if (status) { where.push('d.status=?'); args.push(status); }
+      if (q) { where.push('(d.name LIKE ? OR d.phone LIKE ? OR d.memo LIKE ?)'); args.push(`%${q}%`, `%${normPhone(q) || q}%`, `%${q}%`); }
       const { results } = await env.DB.prepare(`SELECT d.*, c.title campaign, x.code cert_code, x.sig cert_sig FROM donations d LEFT JOIN campaigns c ON c.id=d.campaign_id LEFT JOIN certificates x ON x.id=d.cert_id
-        ${status ? 'WHERE d.status=?' : ''} ORDER BY d.id DESC LIMIT 200`).bind(...(status ? [status] : [])).all();
-      return json({ items: (results || []).map(d => ({ ...d, token: undefined, cert_url: d.cert_code ? verifyPath({ code: d.cert_code, sig: d.cert_sig }) : '' })) });
+        ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${status === 'pending' ? "(d.reported_at<>'') DESC, " : ''}d.id DESC LIMIT 300`).bind(...args).all();
+      const n = await env.DB.prepare("SELECT status, COUNT(*) n FROM donations GROUP BY status").all();
+      return json({ counts: Object.fromEntries((n.results || []).map(r => [r.status, r.n])), items: (results || []).map(d => ({ ...d, token: undefined, cert_url: d.cert_code ? verifyPath({ code: d.cert_code, sig: d.cert_sig }) : '' })) });
     }
     const { results } = await env.DB.prepare(`SELECT t.*, c.title campaign, x.code cert_code, x.sig cert_sig FROM bank_tx t LEFT JOIN campaigns c ON c.id=t.campaign_id LEFT JOIN certificates x ON x.id=t.cert_id
       ${status ? 'WHERE t.status=?' : "WHERE t.status<>'other'"} ORDER BY t.tx_date DESC, t.created_at DESC LIMIT 300`).bind(...(status ? [status] : [])).all();
@@ -53,8 +57,28 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     await env.DB.prepare('UPDATE bank_tx SET status=? WHERE id=?').bind(b.action === 'ignore' ? 'ignored' : (tx.campaign_id ? 'unmatched' : 'other'), tx.id).run();
     return json({ ok: true });
   }
-  if (b.action === 'cancelDonation') {
-    await env.DB.prepare("UPDATE donations SET status='cancelled' WHERE id=? AND status='pending'").bind(Number(b.donation) || 0).run();
+  if (b.action === 'approve') {
+    // Duyệt thủ công: admin xác nhận đã nhận tiền (xem trên app ngân hàng), hệ thống cấp Giấy chứng nhận.
+    const d = await env.DB.prepare('SELECT * FROM donations WHERE id=?').bind(Number(b.donation) || 0).first();
+    if (!d) return json({ error: 'Không tìm thấy lượt ủng hộ.' }, 404);
+    if (d.status === 'paid' || d.cert_id) return json({ error: 'Lượt này đã được duyệt.' }, 400);
+    const c = await campaignById(env, b.campaign || d.campaign_id);
+    if (!c) return json({ error: 'Vui lòng chọn dự án.' }, 400);
+    const amount = Math.round(Number(String(b.amount ?? d.amount).replace(/[^\d]/g, '')) || 0);
+    if (c.kind === 'money' && amount < 1000) return json({ error: 'Vui lòng nhập số tiền thực nhận.' }, 400);
+    const name = clip(b.name, 160).trim() || d.name;
+    if (!name) return json({ error: 'Vui lòng nhập họ tên.' }, 400);
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(b.date || '') ? b.date : vnToday();
+    await env.DB.prepare('UPDATE donations SET name=?, campaign_id=? WHERE id=?').bind(name, c.id, d.id).run();
+    const certId = await payDonation(env, settings, { ...d, name, campaign_id: c.id }, c, amount, '', iso, { source: 'manual', by: me.username });
+    const cert = await env.DB.prepare('SELECT code, sig FROM certificates WHERE id=?').bind(certId).first();
+    await log(env, me, `duyệt ủng hộ #${d.id} ${name} ${amount}, cấp ${cert?.code}`);
+    return json({ ok: true, code: cert?.code, url: cert ? verifyPath(cert) : '' });
+  }
+  if (b.action === 'cancelDonation' || b.action === 'restoreDonation') {
+    const [to, from] = b.action === 'cancelDonation' ? ['cancelled', 'pending'] : ['pending', 'cancelled'];
+    await env.DB.prepare('UPDATE donations SET status=? WHERE id=? AND status=?').bind(to, Number(b.donation) || 0, from).run();
+    await log(env, me, (to === 'cancelled' ? 'hủy' : 'khôi phục') + ' lượt ủng hộ #' + b.donation);
     return json({ ok: true });
   }
   if (b.action === 'confirm') {
