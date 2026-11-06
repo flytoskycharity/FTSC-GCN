@@ -32,6 +32,17 @@
   });
   if (cds.length) { tick(); setInterval(tick, 1000); }
 
+  // Tìm dự án trên trang danh sách
+  const cq = document.getElementById('campQ');
+  if (cq) {
+    const fold = v => String(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+    cq.addEventListener('input', () => {
+      const k = fold(cq.value.trim());
+      $$('.camp[data-q]').forEach(el => { el.hidden = !!k && !fold(el.dataset.q).includes(k); });
+      $$('.grp').forEach(h => { const g = h.nextElementSibling; h.hidden = g && ![...g.children].some(c => !c.hidden); });
+    });
+  }
+
   // ---------- Tra cứu ----------
   const out = $('#lkOut');
   if (!out) return;

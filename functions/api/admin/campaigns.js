@@ -1,5 +1,6 @@
 import { adminApi, log } from '../../_lib/auth.js';
-import { raisedOf, FUND_SLUG } from '../../_lib/db.js';
+import { raisedOf, FUND_SLUG, loadSettings } from '../../_lib/db.js';
+import { syncKhuyendoc } from '../../_lib/external.js';
 import { json, readJson, slugify, clip, money } from '../../_lib/util.js';
 
 const STATUS = ['draft', 'open', 'closed', 'hidden'];
@@ -13,6 +14,10 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     return json({ campaigns: await Promise.all((results || []).map(async c => ({ ...c, raised: await raisedOf(env, c) }))) });
   }
   const b = await readJson(request) || {};
+  if (b.action === 'syncKhuyendoc') {
+    try { const r = await syncKhuyendoc(env, await loadSettings(env), { force: true }); if (r.skipped) return json({ error: r.reason || 'Chưa đồng bộ được' }, 400); await log(env, me, `đồng bộ dự án Tủ sách Bồ Câu Trắng: thêm ${r.added}, cập nhật ${r.updated}`); return json(r); }
+    catch (e) { return json({ error: e.message }, 502); }
+  }
   if (b.action === 'delete') {
     const id = Number(b.id) || 0;
     const n = await env.DB.prepare('SELECT COUNT(*) n FROM certificates WHERE campaign_id=?').bind(id).first();
@@ -33,6 +38,7 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
   const clash = await env.DB.prepare('SELECT id FROM campaigns WHERE slug=? AND id<>?').bind(slug, id).first();
   if (clash) slug = slug.slice(0, 70) + '-' + Date.now().toString(36).slice(-4);
   const memo = clip(r.memo_prefix, 40).toUpperCase();
+  if (memo && memo.replace(/[^A-Z0-9]/g, '') === 'TUSACH') return json({ error: 'TUSACH là cú pháp của Tủ sách Bồ Câu Trắng (Khuyendoc cấp GCN). Hãy dùng nút “Đồng bộ dự án Tủ sách Bồ Câu Trắng” thay vì đặt cú pháp này.' }, 400);
   if (memo) {
     const dup = await env.DB.prepare('SELECT title FROM campaigns WHERE UPPER(memo_prefix)=? AND id<>?').bind(memo, id).first();
     if (dup) return json({ error: `Cú pháp "${memo}" đang dùng cho dự án "${dup.title}". Mỗi dự án cần cú pháp riêng.` }, 400);

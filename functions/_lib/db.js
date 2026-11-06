@@ -23,6 +23,8 @@ const TABLES = [
 // Cột bổ sung cho bảng đã tạo ở bản trước (D1 không có ADD COLUMN IF NOT EXISTS nên bỏ qua lỗi cột đã có).
 const COLUMNS = [
   ['campaigns', "benefits TEXT NOT NULL DEFAULT ''"],
+  ['campaigns', "external_url TEXT NOT NULL DEFAULT ''"], ['campaigns', "external_memo TEXT NOT NULL DEFAULT ''"],
+  ['campaigns', "ext_ref TEXT NOT NULL DEFAULT ''"], ['campaigns', "ext_data TEXT NOT NULL DEFAULT ''"],
   ['donations', "donor_type TEXT NOT NULL DEFAULT ''"], ['donations', "position TEXT NOT NULL DEFAULT ''"],
   ['donations', "tax_code TEXT NOT NULL DEFAULT ''"], ['donations', "address TEXT NOT NULL DEFAULT ''"],
   ['donations', "wants_confirm INTEGER NOT NULL DEFAULT 0"], ['donations', "confirm_file TEXT NOT NULL DEFAULT ''"],

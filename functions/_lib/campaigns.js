@@ -21,6 +21,11 @@ export async function campaignBySlug(env, slug) {
   return c ? { ...c, raised: await raisedOf(env, c) } : null;
 }
 
+export async function externalCampaigns(env) {
+  const { results } = await env.DB.prepare("SELECT * FROM campaigns WHERE status='open' AND external_url<>'' ORDER BY sort DESC, id DESC").all();
+  return (results || []).filter(isOpen);
+}
+
 export const campaignById = (env, id) => env.DB.prepare('SELECT * FROM campaigns WHERE id=?').bind(Number(id) || 0).first();
 
 // Quyền lợi: mỗi dòng "mức tối thiểu | nội dung". Gộp quyền lợi chung (Cài đặt) và quyền lợi riêng của dự án.
@@ -29,5 +34,6 @@ export function benefitsOf(settings, c) {
     const m = l.match(/^([\d.,\s]+)\s*\|\s*(.+)$/);
     return m ? { min: Number(m[1].replace(/\D/g, '')) || 0, text: m[2].trim() } : { min: 0, text: l };
   });
-  return [...parse((settings.donate.benefits || []).join('\n')), ...parse(c?.benefits)].sort((a, b) => a.min - b.min);
+  // Dự án liên kết (Khuyendoc) dùng quyền lợi riêng của dự án đó, không cộng quyền lợi chung của cổng.
+  return [...(c?.external_url ? [] : parse((settings.donate.benefits || []).join('\n'))), ...parse(c?.benefits)].sort((a, b) => a.min - b.min);
 }
