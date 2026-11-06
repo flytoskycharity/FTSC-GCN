@@ -331,3 +331,5 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;back
  .cv-btns .btn{flex:1 1 40%}
 }
 @media (max-width:360px){.logo-t{display:none}}
+/* iPhone/Safari: ô nhập trong khung xếp dọc không được giãn chiều cao (flex:1 làm ô thành hình bầu dục khổng lồ) */
+@media (max-width:640px){.lk-form input,.lk-form .btn{flex:0 0 auto;height:auto;min-height:0}.lk-form input{padding:15px 20px}}
