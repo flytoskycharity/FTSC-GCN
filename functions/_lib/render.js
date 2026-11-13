@@ -4,6 +4,7 @@ import { certValues, IMAGE_KEYS, historyOf, certImagePath } from './certs.js';
 import { qrSvg } from './qr.js';
 import { tracked } from './news.js';
 import { docKindLabel, docUrl, DOC_TYPES, NEAC_URL, parseSig } from './docs.js';
+import { ecosystemSection, ECOSYSTEM } from './ecosystem.js';
 
 const V = '7';
 const ICON = {
@@ -114,7 +115,8 @@ export function renderHome(x, campaigns, fund, news = []) {
   <section class="sec"><div class="wrap"><div class="sec-head"><p class="kicker">Một lần tra cứu</p><h2>Các loại giấy tra cứu được</h2></div><div class="kinds">${kinds.map(k => `<article class="kind"><span class="kind-ic">${k[0]}</span><h3>${esc(k[1])}</h3><p>${esc(k[2])}</p></article>`).join('')}</div></div></section>
   <section class="sec about"><div class="wrap split"><div><p class="kicker">Về chúng tôi</p><h2>Hệ thống từ thiện Fly To Sky</h2><p class="lead">${esc(s.contact.about)} Tìm hiểu hành trình, các chương trình, giải thưởng và đối tác của Fly To Sky.</p><div class="btns mt"><a class="btn btn-primary" href="${esc(s.site.aboutUrl || 'https://info.flytoskycharity.vn/')}" target="_blank" rel="noopener">Xem thêm về Fly To Sky ↗</a><a class="btn btn-ghost" href="${esc(s.contact.website)}" target="_blank" rel="noopener">Website Fly To Sky ↗</a></div></div><div class="about-logo"><img src="/brand/fts-logo-pair.png" alt="Fly To Sky" loading="lazy"></div></div></section>
   ${newsBlock(x, news)}
-  <section class="sec bg-tint" id="chong-gia"><div class="wrap split"><div><p class="kicker">Chống làm giả</p><h2>Mỗi giấy đều kiểm tra được</h2><p class="lead">Mỗi Giấy chứng nhận có mã riêng và mã QR gắn chữ ký số của hệ thống. Tải lên ảnh chụp hoặc tệp PDF của giấy: hệ thống đọc mã QR, dựng lại giấy gốc và so từng dòng thông tin. Mã QR bị ghép từ giấy khác, hoặc nội dung bị sửa, đều bị phát hiện.</p><div class="btns mt"><a class="btn btn-primary" href="/tra-cuu?tab=kiem-tra">${ICON.qr}<span>Kiểm tra giấy</span></a><a class="btn btn-ghost" href="/sao-ke">Xem sao kê</a></div></div><ol class="steps"><li><b>Chụp thẳng toàn bộ tờ giấy</b>, rõ góc có mã QR, hoặc dùng tệp PDF.</li><li><b>Tải lên</b> ở thẻ Kiểm tra giấy.</li><li><b>Xem kết quả</b>: dòng nào sai được đánh dấu. Trường hợp sai được lưu lại để Fly To Sky xử lý.</li></ol></div></section>`;
+  <section class="sec bg-tint" id="chong-gia"><div class="wrap split"><div><p class="kicker">Chống làm giả</p><h2>Mỗi giấy đều kiểm tra được</h2><p class="lead">Mỗi Giấy chứng nhận có mã riêng và mã QR gắn chữ ký số của hệ thống. Tải lên ảnh chụp hoặc tệp PDF của giấy: hệ thống đọc mã QR, dựng lại giấy gốc và so từng dòng thông tin. Mã QR bị ghép từ giấy khác, hoặc nội dung bị sửa, đều bị phát hiện.</p><div class="btns mt"><a class="btn btn-primary" href="/tra-cuu?tab=kiem-tra">${ICON.qr}<span>Kiểm tra giấy</span></a><a class="btn btn-ghost" href="/sao-ke">Xem sao kê</a></div></div><ol class="steps"><li><b>Chụp thẳng toàn bộ tờ giấy</b>, rõ góc có mã QR, hoặc dùng tệp PDF.</li><li><b>Tải lên</b> ở thẻ Kiểm tra giấy.</li><li><b>Xem kết quả</b>: dòng nào sai được đánh dấu. Trường hợp sai được lưu lại để Fly To Sky xử lý.</li></ol></div></section>
+  ${ecosystemSection('certificates', ECOSYSTEM.map(it => it.id === 'donate' ? { ...it, url: '/ung-ho' } : it))}`;
   return page(x, { title: s.site.title }, 'home', main, `<script src="/assets/check.js?v=${V}" defer></script>`);
 }
 
