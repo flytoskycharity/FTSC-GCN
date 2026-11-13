@@ -15,7 +15,8 @@
     return m ? (m[4] ? `${m[4]}:${m[5]} ` : '') + `${m[3]}/${m[2]}/${m[1]}` : t;
   };
   const app = $('#app');
-  const SHEET = 'https://docs.google.com/spreadsheets/d/1GaA2ojIUYSDXo_469Wsan34hv36iRPNvJ8uvIPJ4fPU/edit';
+  // Không ghi sẵn đường dẫn Google Sheets: tệp này công khai, ai có link sheet đang chia sẻ là xem được toàn bộ dữ liệu.
+  const SHEET = '';
   let me = null, campaigns = [], tplMeta = null;
 
   // ---------- tiện ích ----------
@@ -570,7 +571,7 @@
   // ---------- Nhập dữ liệu cũ ----------
   function importView(main) {
     main.innerHTML = top('Nhập dữ liệu cũ', 'Chuyển dữ liệu từ Google Sheets của hệ thống Apps Script cũ sang cổng mới. Mã giấy cũ (VD: FT26…, GCN_1) được giữ nguyên và có thêm mã xác thực chống giả.') +
-      `<div class="card"><form id="imf"><div class="hint"><p>1. Mở Google Sheets → <b>Chia sẻ</b> → “Bất kỳ ai có đường liên kết” → <b>Người xem</b>.</p><p>2. Nhập bảng <b>KEUGOI</b> trước (tạo dự án), rồi bảng <b>GCN</b> (giấy chứng nhận). Chiến dịch chưa có sẽ tự tạo thành dự án “Đã kết thúc”.</p><p>3. Bấm <b>Xem trước</b> để kiểm tra, rồi <b>Ghi vào hệ thống</b>. Mã đã có sẽ bỏ qua (trừ khi chọn ghi đè), nên nhập lại nhiều lần vẫn an toàn.</p></div><div class="fg">${field('type', 'Loại dữ liệu', 'certificates', { options: [['certificates', 'Giấy chứng nhận (bảng GCN)'], ['campaigns', 'Dự án kêu gọi (bảng KEUGOI)']] })}${field('sheet', 'Tên trang tính (tab)', 'GCN')}</div>${field('sheetUrl', 'Đường dẫn Google Sheets', SHEET)}${field('csv', 'Hoặc dán nội dung CSV/TSV (có hàng tiêu đề)', '', { type: 'textarea', rows: 4 })}${check('overwrite', 'Ghi đè giấy đã có cùng mã', false)}<div class="row"><button class="btn ghost" name="go" value="preview">Xem trước</button><button class="btn accent" type="button" id="commitB" disabled>Ghi vào hệ thống</button></div><div class="prog" hidden><span></span></div></form><div id="impOut"></div></div>`;
+      `<div class="card"><form id="imf"><div class="hint"><p>1. Mở Google Sheets → <b>Chia sẻ</b> → “Bất kỳ ai có đường liên kết” → <b>Người xem</b>. <b>Nhập xong hãy tắt chia sẻ ngay</b> (về “Bị hạn chế”), vì sheet chứa họ tên, số điện thoại, số tiền.</p><p>2. Nhập bảng <b>KEUGOI</b> trước (tạo dự án), rồi bảng <b>GCN</b> (giấy chứng nhận). Chiến dịch chưa có sẽ tự tạo thành dự án “Đã kết thúc”.</p><p>3. Bấm <b>Xem trước</b> để kiểm tra, rồi <b>Ghi vào hệ thống</b>. Mã đã có sẽ bỏ qua (trừ khi chọn ghi đè), nên nhập lại nhiều lần vẫn an toàn.</p></div><div class="fg">${field('type', 'Loại dữ liệu', 'certificates', { options: [['certificates', 'Giấy chứng nhận (bảng GCN)'], ['campaigns', 'Dự án kêu gọi (bảng KEUGOI)']] })}${field('sheet', 'Tên trang tính (tab)', 'GCN')}</div>${field('sheetUrl', 'Đường dẫn Google Sheets', SHEET)}${field('csv', 'Hoặc dán nội dung CSV/TSV (có hàng tiêu đề)', '', { type: 'textarea', rows: 4 })}${check('overwrite', 'Ghi đè giấy đã có cùng mã', false)}<div class="row"><button class="btn ghost" name="go" value="preview">Xem trước</button><button class="btn accent" type="button" id="commitB" disabled>Ghi vào hệ thống</button></div><div class="prog" hidden><span></span></div></form><div id="impOut"></div></div>`;
     const form = $('#imf'), out = $('#impOut');
     let items = null;
     form.elements.type.onchange = e => { form.elements.sheet.value = e.target.value === 'campaigns' ? 'KEUGOI' : 'GCN'; items = null; $('#commitB').disabled = true; };
