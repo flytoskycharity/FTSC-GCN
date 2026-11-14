@@ -370,3 +370,12 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;back
 /* Không ngắt dòng giữa một cụm từ (VD: "Giấy chứng nhận", "Fly To Sky") */
 .nw{white-space:nowrap}
 .logo-t b,.logo-t small,.foot-app b,.foot-app small,.foot-title,h1,h2{text-wrap:balance}
+
+/* Thẻ app ở chân trang: giãn đủ rộng, chữ không rơi dòng khi còn chỗ (11/2026) */
+.foot-app{display:flex!important;width:100%;max-width:440px}
+.foot-app b,.foot-app small{text-wrap:wrap!important}
+.foot-app small{white-space:nowrap}
+.logo-t b,.logo-t small{text-wrap:pretty!important}
+@media (max-width:360px){.foot-app small{white-space:normal}}
+.foot-app span.nw,.foot-app .nw{display:inline!important;flex:none}
+.foot-app{width:fit-content!important;max-width:100%!important}
