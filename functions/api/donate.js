@@ -6,6 +6,7 @@ import { campaignById, isOpen } from '../_lib/campaigns.js';
 import { vietQr, qrSvg } from '../_lib/qr.js';
 import { syncBank } from '../_lib/bank.js';
 import { verifyPath } from '../_lib/certs.js';
+import { pushStaff } from '../_lib/push-notify.js';
 
 const cut = (v, n) => clip(String(v ?? '').replace(/[<>]/g, ''), n);
 
@@ -44,6 +45,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
   const memo = `${c.memo_prefix} ${phone}`, token = randomHex(16);
   await env.DB.prepare(`INSERT INTO donations(token,campaign_id,name,phone,org,email,amount,memo,donor_type,position,tax_code,address,wants_confirm,message) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .bind(token, c.id, name, phone, cut(b.org, 200), email, amount, memo, type.id, cut(b.position, 160), cut(b.taxCode, 20), cut(b.address, 250), wants, cut(b.message, 1000)).run();
+  pushStaff(env, waitUntil, { title: 'Lượt ủng hộ mới chờ duyệt', body: `${name} · ${money(amount)} · ${c.title}`, url: '/admin/#duyet', tag: 'donate' });
   const bank = s.bank;
   return json({
     token, memo, amount, project: c.title, wantsConfirm: !!wants, units: unitsOf(amount, c),

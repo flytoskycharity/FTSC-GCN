@@ -1,6 +1,7 @@
 // Xác thực giấy: dùng chung cho trang /xac-thuc, kiểm tra giấy tải lên và nhật ký sai phạm.
 import { equal, normCode, codePath, randomHex, clip } from './util.js';
 import { certValues, templateOf, FIELD_KEYS, IMAGE_KEYS, certImagePath } from './certs.js';
+import { pushStaff } from './push-notify.js';
 
 export async function findCert(env, code, s) {
   const c = await env.DB.prepare('SELECT * FROM certificates WHERE code=?').bind(normCode(code)).first();
@@ -33,4 +34,6 @@ export async function logVerify(env, request, { kind, verdict, code = '', qr = '
   }
   await env.DB.prepare('INSERT INTO verify_logs(kind,verdict,code,qr,detail,image,ip,ua) VALUES(?,?,?,?,?,?,?,?)')
     .bind(kind, verdict, clip(code, 80), clip(qr, 500), clip(detail, 2000), key, request.headers.get('cf-connecting-ip') || '', clip(request.headers.get('user-agent'), 300)).run();
+  const what = { invalid: 'mã không hợp lệ', revoked: 'giấy đã thu hồi', foreign: 'chữ ký không phải của Fly To Sky', tampered: 'tệp bị chỉnh sửa' }[verdict] || verdict || 'cần kiểm tra';
+  await pushStaff(env, null, { title: 'Tra cứu đáng ngờ: ' + what, body: [code, clip(detail, 160)].filter(Boolean).join(' · ') || 'Xem Nhật ký xác thực', url: '/admin/#nhat-ky', tag: 'verify' });
 }

@@ -10,3 +10,6 @@
   Cache-Control: public, max-age=300
 /brand/*
   Cache-Control: public, max-age=86400
+/push-sw.js
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /

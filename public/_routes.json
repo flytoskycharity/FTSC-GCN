@@ -12,6 +12,7 @@
     "/robots.txt",
     "/404.html",
     "/favicon.ico",
-    "/site.webmanifest"
+    "/site.webmanifest",
+    "/push-sw.js"
   ]
 }

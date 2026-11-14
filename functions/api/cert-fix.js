@@ -3,8 +3,9 @@ import { initializeDatabase } from '../_lib/db.js';
 import { limited, sameOrigin } from '../_lib/auth.js';
 import { json, readJson, clip } from '../_lib/util.js';
 import { findCert } from '../_lib/verify.js';
+import { pushStaff } from '../_lib/push-notify.js';
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
   if (!env.DB) return json({ error: 'Hệ thống tạm thời chưa sẵn sàng.' }, 503);
   if (!sameOrigin(request)) return json({ error: 'Yêu cầu không hợp lệ.' }, 403);
   await initializeDatabase(env);
@@ -23,5 +24,6 @@ export async function onRequestPost({ request, env }) {
   await env.DB.prepare("UPDATE cert_requests SET status='replaced' WHERE cert_id=? AND status='pending'").bind(c.id).run();
   await env.DB.prepare('INSERT INTO cert_requests(cert_id,code,changes,reason,contact,ip) VALUES(?,?,?,?,?,?)')
     .bind(c.id, c.code, JSON.stringify(changes), reason, clip(b.contact, 160), request.headers.get('cf-connecting-ip') || '').run();
+  pushStaff(env, waitUntil, { title: 'Đề xuất điều chỉnh Giấy chứng nhận · ' + c.code, body: `${c.name}: ${reason}`, url: '/admin/#de-xuat', tag: 'fix-' + c.code });
   return json({ ok: true });
 }
