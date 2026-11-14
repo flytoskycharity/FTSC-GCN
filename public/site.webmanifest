@@ -1,0 +1,15 @@
+{
+  "name": "Tra cứu Giấy chứng nhận – Hệ thống từ thiện Fly To Sky",
+  "short_name": "Tra cứu GCN",
+  "description": "Cổng tra cứu thông tin Giấy chứng nhận của Hệ thống từ thiện Fly To Sky",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#031552",
+  "lang": "vi",
+  "icons": [
+    { "src": "/brand/app/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/brand/app/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

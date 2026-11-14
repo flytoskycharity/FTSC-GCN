@@ -1,5 +1,17 @@
 {
   "version": 1,
-  "include": ["/*"],
-  "exclude": ["/assets/*", "/brand/*", "/admin", "/admin/*", "/favicon.png", "/robots.txt", "/404.html"]
+  "include": [
+    "/*"
+  ],
+  "exclude": [
+    "/assets/*",
+    "/brand/*",
+    "/admin",
+    "/admin/*",
+    "/favicon.png",
+    "/robots.txt",
+    "/404.html",
+    "/favicon.ico",
+    "/site.webmanifest"
+  ]
 }

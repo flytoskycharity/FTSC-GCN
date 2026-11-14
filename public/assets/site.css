@@ -333,3 +333,34 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;back
 @media (max-width:360px){.logo-t{display:none}}
 /* iPhone/Safari: ô nhập trong khung xếp dọc không được giãn chiều cao (flex:1 làm ô thành hình bầu dục khổng lồ) */
 @media (max-width:640px){.lk-form input,.lk-form .btn{flex:0 0 auto;height:auto;min-height:0}.lk-form input{padding:15px 20px}}
+
+:root{--app:#f97a0a;--app-2:#fdb515;--app-ink:#c2510a;--app-light:#ffc27a;--app-glow:rgba(249,122,10,.30)}
+/* ===== Nhận diện nền tảng (11/2026): giữ nền xanh Fly To Sky, thêm màu nhấn riêng theo app icon ===== */
+.site-head::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--primary) 0%,var(--accent) 45%,var(--app) 75%,var(--app-2) 100%)}
+.logo-app{display:flex;align-items:center;gap:10px;border-left:1.5px solid rgba(5,34,139,.18);padding-left:12px}
+.logo-app .logo-t{border-left:0;padding-left:0}
+.logo .app-ic{height:44px;width:44px;border-radius:11px;box-shadow:0 6px 14px -8px var(--app)}
+.main-nav a.on{color:var(--primary);box-shadow:inset 0 -3px 0 var(--app)}
+.main-nav a:hover{color:var(--app-ink)}
+.head-cta{background:linear-gradient(135deg,var(--app) 0%,var(--app-2) 100%);box-shadow:0 10px 22px -10px var(--app)}
+.hero-home{background:linear-gradient(120deg,var(--primary-dark) 0%,#06298f 62%,#0a3aa8 100%)}
+.hero-home::after{content:"";position:absolute;right:-120px;top:-160px;width:620px;height:620px;border-radius:50%;background:radial-gradient(circle,var(--app-glow) 0%,transparent 65%);pointer-events:none}
+.hero-app{position:absolute;right:max(40px,calc((100% - 1200px)/2 + 10px));top:50%;transform:translateY(-50%) rotate(-6deg);width:clamp(200px,22vw,300px);height:auto;z-index:1;filter:drop-shadow(0 30px 50px rgba(0,0,0,.35));pointer-events:none}
+.hero-home .wrap{z-index:2}
+.hero-home .hero-in{padding-right:min(320px,26vw)}
+.hero .kicker{color:var(--app-light)}
+.hero .kicker::before{content:"";width:22px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--app),var(--app-2))}
+.hero-org div{border-left-color:var(--app)}
+.kicker{color:var(--app-ink)}
+.site-foot{position:relative}
+.site-foot::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,var(--accent),var(--app),var(--app-2))}
+.foot-app{display:flex;align-items:center;gap:12px;margin:0 0 16px;padding:10px 14px 10px 10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;width:max-content;max-width:100%}
+.foot-app img{width:52px;height:52px;border-radius:13px;flex:none}
+.foot-app span{display:flex;flex-direction:column;line-height:1.25}
+.foot-app b{color:#fff;font-size:1.05em}.foot-app small{color:var(--app-light);font-weight:700;font-size:.86em}
+.site-foot a:hover{color:var(--app-light)}
+@media (max-width:1100px){.hero-app{display:none}.hero-home .hero-in{padding-right:0}}
+@media (max-width:760px){.logo .app-ic{height:36px;width:36px;border-radius:9px}.logo-app{gap:8px;padding-left:9px}}
+@media (max-width:520px){.logo .app-ic{height:30px;width:30px;border-radius:8px}.logo-app{padding-left:8px;gap:6px}}
+@media (max-width:400px){.logo-t{display:flex!important}.logo-t b{font-size:.74em!important;line-height:1.18}.logo img{height:28px}.logo .app-ic{height:28px;width:28px;border-radius:7px}.logo-app{padding-left:6px;gap:5px}.logo{gap:6px}}
+@media (max-width:340px){.logo .app-ic{display:none}}
