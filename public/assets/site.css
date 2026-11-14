@@ -364,3 +364,9 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;back
 @media (max-width:520px){.logo .app-ic{height:30px;width:30px;border-radius:8px}.logo-app{padding-left:8px;gap:6px}}
 @media (max-width:400px){.logo-t{display:flex!important}.logo-t b{font-size:.74em!important;line-height:1.18}.logo img{height:28px}.logo .app-ic{height:28px;width:28px;border-radius:7px}.logo-app{padding-left:6px;gap:5px}.logo{gap:6px}}
 @media (max-width:340px){.logo .app-ic{display:none}}
+.foot-brand{min-width:0}
+.foot-app{display:inline-flex;width:auto}
+.foot-app span{min-width:0}
+/* Không ngắt dòng giữa một cụm từ (VD: "Giấy chứng nhận", "Fly To Sky") */
+.nw{white-space:nowrap}
+.logo-t b,.logo-t small,.foot-app b,.foot-app small,.foot-title,h1,h2{text-wrap:balance}
