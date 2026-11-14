@@ -137,8 +137,9 @@
   function shell() {
     app.innerHTML = `<div class="shell"><aside class="side"><a class="side-brand" href="/" target="_blank"><img src="/brand/fts-logo-pair.png" alt=""><b>Cổng tra cứu Giấy chứng nhận</b></a><nav>${TABS.filter(t => !t[3] || isSuper()).map(t => `<a href="#${t[0]}" data-tab="${t[0]}">${esc(t[1])}</a>`).join('')}</nav><div class="side-foot"><p id="qState" class="qstate" hidden></p><p><b>${esc(me.name || me.username)}</b><br>${esc({ super: 'Quản trị cao nhất', staff: 'Cán bộ cấp GCN & dự án', viewer: 'Chỉ xem' }[me.role] || me.role)}</p><div id="ftsp" style="margin:0 0 10px"></div><button type="button" id="chg">Đổi mật khẩu</button><button type="button" id="out">Đăng xuất</button></div></aside><main class="main" id="main"></main></div>`;
     if (window.FTSPush && $('#ftsp')) FTSPush.mount($('#ftsp'), { key: '/api/admin/push/key', subscribe: '/api/admin/push/subscribe', unsubscribe: '/api/admin/push/unsubscribe', test: '/api/admin/push/test', sw: '/push-sw.js' });
+    if (window.FTSMobileShell) FTSMobileShell.mount({ icon: '/brand/app/app-icon-128.png', app: 'Giấy chứng nhận', home: '#tong-quan', user: me.name || me.username || '', items: [{ href: '#tong-quan', label: 'Tổng quan', icon: 'home' }, { href: '#duyet', label: 'Duyệt', icon: 'heart' }, { href: '#giay', label: 'Giấy CN', icon: 'award' }, { href: '#du-an', label: 'Dự án', icon: 'folder' }] });
     $('#chg').onclick = () => changeView(false);
-    $('#out').onclick = async () => { await fetch('/api/logout', { method: 'POST' }); me = null; boot(); };
+    $('#out').onclick = async () => { await fetch('/api/logout', { method: 'POST' }); me = null; window.FTSMobileShell?.unmount(); boot(); };
     // Trên điện thoại bảng hiển thị thành thẻ: gắn tên cột vào từng ô.
     const label = root => root.querySelectorAll('table').forEach(t => {
       const heads = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim());
