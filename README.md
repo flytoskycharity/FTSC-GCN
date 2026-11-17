@@ -21,7 +21,9 @@ Chạy trên **Cloudflare Pages** (cùng kiến trúc với Tủ sách Bồ Câu
 - **Admin riêng** (không phải sửa mã): dự án, mẫu, giấy (cấp lẻ, cấp hàng loạt, sửa, thu hồi), duyệt ủng hộ, nhập dữ liệu cũ từ Google Sheets, cài đặt nội dung, tài khoản & nhật ký.
 
 ## Tệp giấy cấp ở nơi khác & chữ ký số
-Admin → Giấy chứng nhận → Sửa → **Tệp giấy đã cấp**: chọn loại (Giấy khen / Giấy chứng nhận / Khác) và hình thức. Chỉ nhận 2 hình thức:
+Admin → Giấy chứng nhận → Sửa → **Tệp giấy đã cấp**: chọn loại (Giấy khen / Giấy chứng nhận / Khác) và hình thức.
+
+**Luồng nhập nhanh:** Admin → Giấy chứng nhận → **+ Nhập giấy đã ký**. Nhập họ tên, dự án, ngày cấp, loại giấy, chọn bản scan ký tay hoặc PDF ký số và tải tệp lên. Hệ thống kiểm tra tệp trước khi tạo hồ sơ, lưu bản gốc vào R2 riêng tư, cấp mã và liên kết xác thực trong một lần. Bản scan được ghi nhận là do tài khoản quản trị Fly To Sky tải lên, không tự chứng thực chữ ký tay. Ảnh JPG/PNG/WEBP tải lại đúng tệp sẽ được đối chiếu bằng SHA-256 tại mục Kiểm tra giấy ngay cả khi không có QR; ảnh chụp mới hoặc scan lại phải đối chiếu thủ công. PDF vẫn kiểm tra chữ ký và có hướng dẫn kiểm tra lại tại NEAC như trước.\n Chỉ nhận 2 hình thức:
 - **Bản scan có chữ ký tay** (ảnh JPG/PNG/WEBP hoặc PDF).
 - **PDF có chữ ký số**: hệ thống kiểm tra ngay khi tải (tài liệu nguyên vẹn, chữ ký khớp chứng thư, chuỗi chứng thư lên Root CA quốc gia, chứng thư còn hiệu lực khi ký). Không hợp lệ thì từ chối.
 
