@@ -173,11 +173,17 @@
     out.scrollIntoView({ behavior: 'smooth', block: 'start' });
     let t = null;
     const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+    // Bản scan ảnh không có QR vẫn đối chiếu được nếu là đúng tệp Fly To Sky đã lưu.
+    const scanReq = !isPdf && ['image/jpeg', 'image/png', 'image/webp'].includes(f.type) && f.size <= 15e6
+      ? fetch('/api/verify-file', { method: 'POST', headers: { 'Content-Type': f.type }, body: f }).then(r => r.ok ? r.json() : null).catch(() => null)
+      : Promise.resolve(null);
     const pdfReq = isPdf && f.size <= 15e6 ? fetch('/api/verify-pdf', { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: f }).then(r => r.json()).catch(() => null) : Promise.resolve(null);
     const addPdf = async () => { const r = await pdfReq; if (r && (r.signatures?.length || r.match)) out.insertAdjacentHTML('afterbegin', pdfPanel(r)); return r; };
     try {
       t = await readFile(f);
       if (!t.data) {
+        const scanMatch = await scanReq;
+        if (scanMatch?.match) { out.innerHTML = pdfPanel(scanMatch); return; }
         const r = await pdfReq;
         if (r && (r.signatures?.length || r.match)) { out.innerHTML = pdfPanel(r); return; }
         out.innerHTML = `<div class="ver ver-invalid">${head('no_qr')}</div>`;
