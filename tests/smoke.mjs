@@ -64,6 +64,13 @@ assert.match(signedPage, /Bản scan có chữ ký tay/i, 'trang xác thực ph�
 const signedFile = await fetch(B + '/api/cert-file?code=' + encodeURIComponent(signedCert.code) + '&s=' + signedCert.url.split('s=')[1]);
 assert.equal(signedFile.status, 200, 'xem tệp gốc bằng mã + chữ ký xác thực');
 assert.deepEqual(new Uint8Array(await signedFile.arrayBuffer()), jpg, 'tệp bản gốc không bị chỉnh sửa');
+const scanCheckRes = await fetch(B + '/api/verify-file', { method: 'POST', headers: { Origin: B, 'Content-Type': 'image/jpeg' }, body: jpg });
+assert.equal(scanCheckRes.status, 200, 'API kiểm tra ảnh scan hoạt động');
+const scanCheck = await scanCheckRes.json();
+assert.equal(scanCheck.match?.code, signedCert.code, 'đối chiếu file scan đúng từng byte');
+const editedJpg = new Uint8Array(jpg); editedJpg[5] ^= 1;
+const editedRes = await fetch(B + '/api/verify-file', { method: 'POST', headers: { Origin: B, 'Content-Type': 'image/jpeg' }, body: editedJpg });
+assert.equal((await editedRes.json()).match, null, 'không xác thực ảnh đã thay đổi');
 assert.equal((await fetch(B + '/api/cert-file?code=' + encodeURIComponent(signedCert.code) + '&s=WRONG')).status, 404, 'không cho đọc tệp nếu sai mã xác thực');
 assert.ok((await j('/api/admin/certificates?source=signed')).items.some(c => c.code === signedCert.code && c.doc_type === 'scan'), 'có lọc nguồn giấy nhập đã ký');
 
