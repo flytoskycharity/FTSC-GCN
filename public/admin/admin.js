@@ -301,15 +301,16 @@
   }
 
   // ---------- Giấy chứng nhận ----------
-  const SRC = { auto: 'Tự động (sao kê)', manual: 'Cấp tay', import: 'Nhập từ bảng tính' };
+  const SRC = { auto: 'Tự động (sao kê)', manual: 'Cấp tay', signed: 'Nhập giấy đã ký', import: 'Nhập từ bảng tính' };
   let certState = { q: '', campaign: '', source: '', status: '', page: 1 };
   async function certsView(main, arg) {
     await loadCampaigns();
     if (arg && arg.startsWith('c')) certState = { ...certState, campaign: arg.slice(1), page: 1 };
-    main.innerHTML = top('Giấy chứng nhận', 'Tra cứu, cấp mới, chỉnh sửa (giữ nguyên mã, lưu lịch sử) và thu hồi.', canEdit() ? '<button class="btn accent" id="newG">+ Cấp giấy</button><button class="btn ghost" id="bulkG">Cấp hàng loạt</button>' : '') +
+    main.innerHTML = top('Giấy chứng nhận', 'Tra cứu, cấp mới, chỉnh sửa (giữ nguyên mã, lưu lịch sử) và thu hồi.', canEdit() ? '<button class="btn accent" id="newG">+ Cấp giấy</button><button class="btn ghost" id="importG">+ Nhập giấy đã ký</button><button class="btn ghost" id="bulkG">Cấp hàng loạt</button>' : '') +
       `<form class="filters" id="gf"><input type="search" name="q" value="${esc(certState.q)}" placeholder="Mã giấy, họ tên hoặc số điện thoại"><select name="campaign">${campOptions().map(([v, l]) => `<option value="${v}"${String(v) === certState.campaign ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select><select name="source"><option value="">Mọi nguồn</option>${Object.entries(SRC).map(([k, l]) => `<option value="${k}"${k === certState.source ? ' selected' : ''}>${l}</option>`).join('')}</select><select name="status"><option value="">Mọi trạng thái</option><option value="valid"${certState.status === 'valid' ? ' selected' : ''}>Hiệu lực</option><option value="revoked"${certState.status === 'revoked' ? ' selected' : ''}>Đã thu hồi</option></select><button class="btn">Lọc</button></form><div class="card"><div id="glist"><p class="empty">Đang tải…</p></div></div>`;
     $('#gf').addEventListener('submit', e => { e.preventDefault(); certState = { ...certState, ...formData(e.target), page: 1 }; loadCerts(); });
     $('#newG')?.addEventListener('click', () => issueForm(certState.campaign));
+    $('#importG')?.addEventListener('click', () => signedImportForm(certState.campaign));
     $('#bulkG')?.addEventListener('click', () => bulkForm(certState.campaign));
     await loadCerts();
     if (arg && arg.startsWith('new') && canEdit()) issueForm(arg.slice(3));
@@ -345,6 +346,76 @@
       } catch (x) { const er = $('.err', m); er.textContent = x.message; er.hidden = false; }
     });
   }
+
+  // Nhập giấy đã ký tay (scan) hoặc PDF ký số trong một lần: lưu tệp + cấp mã cùng một giao dịch.
+  // Giữ nguyên biểu mẫu cấp giấy, sửa giấy và chức năng kiểm tra chữ ký hiện có.
+  async function signedImportForm(campId) {
+    const kinds = [['giay-chung-nhan', 'Giấy chứng nhận'], ['giay-khen', 'Giấy khen'], ['khac', 'Khác']];
+    const today = new Date(Date.now() + 7 * 36e5).toISOString().slice(0, 10);
+    const m = modal.open(`<h2>Nhập giấy đã ký</h2><p class="hint">Dùng cho giấy đã ký tay trên bản giấy (scan lại) hoặc PDF đã ký số bên ngoài hệ thống. Chỉ quản trị viên được đưa bản gốc vào kho lưu trữ; hệ thống tự cấp mã và trang xác thực riêng.</p>
+      <form id="signedForm">
+        ${field('campaign_id', 'Dự án, chương trình', campId || '0', { options: campOptions(false) })}
+        ${field('name', 'Họ và tên người nhận *', '', { required: true, max: 160 })}
+        <div class="fg">${field('phone', 'Số điện thoại (để tra cứu)', '')}${field('org', 'Chức vụ, đơn vị', '', { max: 200 })}</div>
+        <div class="fg">${field('amount', 'Số tiền (VNĐ, nếu có)', '')}${field('amount_text', 'Nội dung ghi nhận', '', { max: 200 })}</div>
+        <div class="fg">${field('issued_date', 'Ngày cấp trên bản gốc', today, { type: 'date', required: true })}${field('code', 'Mã trên giấy (nếu đã có)', '', { max: 80, help: 'Để trống để hệ thống tự tạo mã xác thực.' })}</div>
+        <div class="fg">
+          <label class="f"><span>Loại giấy</span><select id="signedKind">${kinds.map(([v,l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
+          <label class="f" id="signedKindOther" hidden><span>Loại giấy khác</span><input id="signedKindLabel" placeholder="Ví dụ: Thư cảm ơn, quyết định khen thưởng"></label>
+        </div>
+        <div class="row" style="margin-bottom:10px"><label class="chk"><input type="radio" name="signedType" value="scan" checked> Scan có chữ ký tay</label><label class="chk"><input type="radio" name="signedType" value="digital"> PDF có chữ ký số</label></div>
+        <label class="f"><span>Tệp giấy đã ký *</span><input id="signedFile" type="file" required accept="application/pdf,image/jpeg,image/png,image/webp"><small>Ảnh JPG/PNG/WEBP hoặc PDF, tối đa 15 MB. Tệp lưu riêng tư, chỉ xem qua đường dẫn xác thực.</small></label>
+        ${field('note', 'Ghi chú nội bộ', '', { max: 500 })}
+        <p class="sub">Bản scan được ghi nhận là tệp do quản trị viên Fly To Sky tải lên (không phải chứng thực chữ ký viết tay). PDF ký số được kiểm tra như hiện tại và có thể đối chiếu tại NEAC; hệ thống giữ nguyên từng byte của tệp đã ký.</p>
+        <p class="err" id="signedError" hidden></p>
+        <div class="modal-acts"><button class="btn" type="submit" id="signedSubmit">Tải lên & đăng ký xác thực</button></div>
+      </form>`, true);
+    const form = $('#signedForm', m), fileInput = $('#signedFile', m);
+    $('#signedKind', m).onchange = e => { $('#signedKindOther', m).hidden = e.target.value !== 'khac'; };
+    form.querySelectorAll('[name=signedType]').forEach(radio => {
+      radio.onchange = () => {
+        const digital = form.querySelector('[name=signedType]:checked').value === 'digital';
+        fileInput.accept = digital ? 'application/pdf' : 'application/pdf,image/jpeg,image/png,image/webp';
+        fileInput.value = '';
+      };
+    });
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const err = $('#signedError', m), btn = $('#signedSubmit', m);
+      err.hidden = true;
+      const file = fileInput.files[0];
+      const type = form.querySelector('[name=signedType]:checked').value;
+      if (!file || file.size === 0 || file.size > 15e6) {
+        err.textContent = 'Chọn tệp hợp lệ, tối đa 15 MB.'; err.hidden = false; return;
+      }
+      if (type === 'digital' && !/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') {
+        err.textContent = 'Chữ ký số chỉ hỗ trợ tệp PDF.'; err.hidden = false; return;
+      }
+      const kind = $('#signedKind', m).value, kindLabel = $('#signedKindLabel', m).value;
+      if (kind === 'khac' && !kindLabel.trim()) {
+        err.textContent = 'Vui lòng nhập tên loại giấy khác.'; err.hidden = false; return;
+      }
+      const fd = new FormData();
+      fd.append('record', JSON.stringify(formData(form)));
+      fd.append('type', type); fd.append('kind', kind); fd.append('kindLabel', kindLabel); fd.append('file', file);
+      btn.disabled = true; btn.textContent = 'Đang kiểm tra và lưu bản gốc…';
+      try {
+        const d = await api('/api/admin/cert-import', fd);
+        const c = d.created;
+        $('.modal-body').innerHTML = `<h2>Đã nhập giấy đã ký</h2><p class="hint">Bản gốc đã lưu và liên kết với mã giấy <code>${esc(c.code)}</code>. Người nhận có thể dùng đường dẫn này để xác thực và xem/tải tệp gốc.</p>
+          ${d.warn ? `<p class="err">${esc(d.warn)}</p>` : ''}
+          <label class="f"><span>Đường dẫn xác thực (có thể đưa vào mã QR)</span><input readonly value="${esc(location.origin + c.url)}"></label>
+          <div class="modal-acts"><a class="btn" href="${esc(c.url)}" target="_blank" rel="noopener">Xem giấy & bản gốc</a><button class="btn ghost" id="moreSigned">Nhập giấy khác</button></div>`;
+        $('#moreSigned').onclick = () => signedImportForm(form.elements.campaign_id.value);
+        toast('Đã tải lên và đăng ký xác thực');
+        if ($('#glist')) loadCerts();
+      } catch (x) {
+        err.textContent = x.message || 'Không thể lưu giấy. Vui lòng thử lại.';
+        err.hidden = false;
+      } finally { btn.disabled = false; btn.textContent = 'Tải lên & đăng ký xác thực'; }
+    });
+  }
+
   async function bulkForm(campId) {
     tplMeta = tplMeta || await api('/api/admin/templates');
     if (!campaigns.length) await loadCampaigns();
