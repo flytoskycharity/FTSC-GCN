@@ -48,6 +48,34 @@ assert.equal((await fetch(B + imgUrl)).status, 404, 'chưa ghép thì chưa có 
 const q = await j('/api/admin/cert-render');
 const item = q.items.find(x => x.code === cert.code); assert.ok(item && item.tpl.background, 'hàng đợi ghép ảnh có giấy mới');
 const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0xff, 0xd9]);
+// Nhập giấy đã ký ở ngoài hệ thống: một lần tải lên + cấp mã, bản scan được giữ nguyên byte.
+const signedFd = new FormData();
+signedFd.append('record', JSON.stringify({ name: 'Tình Nguyện Viên Ký Tay', campaign_id: id, issued_date: '2026-11-17', note: 'Test import scan' }));
+signedFd.append('kind', 'giay-chung-nhan');
+signedFd.append('type', 'scan');
+signedFd.append('file', new Blob([jpg], { type: 'image/jpeg' }), 'scan-ky-tay.jpg');
+const signedRes = await fetch(B + '/api/admin/cert-import', { method: 'POST', headers: { Origin: B, Cookie: cookie }, body: signedFd });
+const signedBody = await signedRes.json();
+assert.ok(signedRes.ok && signedBody.ok, 'nhập giấy ký tay: ' + (signedBody.error || signedRes.status));
+const signedCert = signedBody.created;
+assert.ok(signedCert.code && signedCert.url.includes('s='), 'cấp mã và link xác thực cho giấy ký tay');
+const signedPage = await (await call(signedCert.url)).text();
+assert.match(signedPage, /Bản scan có chữ ký tay/i, 'trang xác thực phải hiện đúng loại bản gốc');
+const signedFile = await fetch(B + '/api/cert-file?code=' + encodeURIComponent(signedCert.code) + '&s=' + signedCert.url.split('s=')[1]);
+assert.equal(signedFile.status, 200, 'xem tệp gốc bằng mã + chữ ký xác thực');
+assert.deepEqual(new Uint8Array(await signedFile.arrayBuffer()), jpg, 'tệp bản gốc không bị chỉnh sửa');
+assert.equal((await fetch(B + '/api/cert-file?code=' + encodeURIComponent(signedCert.code) + '&s=WRONG')).status, 404, 'không cho đọc tệp nếu sai mã xác thực');
+assert.ok((await j('/api/admin/certificates?source=signed')).items.some(c => c.code === signedCert.code && c.doc_type === 'scan'), 'có lọc nguồn giấy nhập đã ký');
+
+// Chọn chế độ ký số thì không được chấp nhận ảnh scan; không tạo giấy rác.
+const badFd = new FormData();
+badFd.append('record', JSON.stringify({ name: 'Không Được Tạo' }));
+badFd.append('kind', 'giay-chung-nhan'); badFd.append('type', 'digital');
+badFd.append('file', new Blob([jpg], { type: 'image/jpeg' }), 'anh-khong-ky-so.jpg');
+const badSigned = await fetch(B + '/api/admin/cert-import', { method: 'POST', headers: { Origin: B, Cookie: cookie }, body: badFd });
+assert.equal(badSigned.status, 400, 'PDF ký số phải từ chối ảnh');
+assert.ok(!(await j('/api/admin/certificates?q=' + encodeURIComponent('Không Được Tạo'))).items.length, 'không tạo giấy khi kiểm tra tệp thất bại');
+
 const up = await fetch(B + `/api/admin/cert-render?id=${item.id}&ver=${encodeURIComponent(item.ver)}`, { method: 'POST', headers: { Origin: B, Cookie: cookie, 'Content-Type': 'image/jpeg' }, body: jpg });
 assert.ok(up.ok, 'lưu ảnh đã ghép');
 const im = await fetch(B + imgUrl); assert.equal(im.status, 200); assert.equal(im.headers.get('content-type'), 'image/jpeg');
