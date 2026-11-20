@@ -1,6 +1,7 @@
 import { normPhone, nameKey, maskPhone, normCode, validCode } from './util.js';
 import { verifyPath, historyOf } from './certs.js';
 import { docKindLabel, DOC_TYPES } from './docs.js';
+import { driveId } from './drive.js';
 
 // Tra cứu theo tên phải có ít nhất 2 từ (họ + tên) để không thể "vét" toàn bộ dữ liệu bằng vài chữ cái.
 export const NAME_LIMIT = 20;
@@ -27,7 +28,7 @@ export async function searchLocal(env, settings, q) {
     amount: c.amount > 0 ? c.amount : null, amountText: c.amount > 0 ? '' : (c.amount_text || settings.cert.programText),
     date: c.issued_date, status: c.status === 'revoked' ? 'revoked' : 'valid', url: verifyPath(c),
     // Tệp giấy đã ký (scan/PDF) để thẻ Kiểm tra giấy đặt cạnh ảnh người dùng chụp khi giấy không có mã QR.
-    file: c.doc_file && c.status !== 'revoked' ? { mime: c.doc_mime, url: `/api/cert-file?code=${encodeURIComponent(c.code)}&s=${c.sig}` } : null,
+    file: (c.doc_file || driveId(c.file_url)) && c.status !== 'revoked' ? { mime: c.doc_file ? c.doc_mime : '', url: `/api/cert-file?code=${encodeURIComponent(c.code)}&s=${c.sig}` } : null,
     adjusted: historyOf(c).map(h => ({ at: h.at, changes: h.changes })),
     documents: [
       ...(c.file_url ? [{ label: 'Bản gốc', url: c.file_url }] : []),

@@ -174,16 +174,20 @@
   // 2) Thuật toán trong trình duyệt căn ảnh chụp theo bản gốc và tô đỏ chỗ khác. AI chỉ ghi chú thêm, không quyết định.
   const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json()).catch(() => ({ off: true }));
   let aiOn = true;
+  // Bản gốc có thể là ảnh hoặc PDF (giấy cũ trên Google Drive chưa biết trước loại): xem loại tệp khi tải về.
   async function originalView(file) {
-    if (file.mime === 'application/pdf') {
+    const res = await fetch(file.url);
+    if (!res.ok) throw new Error('Không tải được bản gốc');
+    const blob = await res.blob(), head = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+    if (blob.type === 'application/pdf' || String.fromCharCode(...head) === '%PDF') {
       const P = await import('/assets/vendor/pdf.min.mjs');
       P.GlobalWorkerOptions.workerSrc = '/assets/vendor/pdf.worker.min.mjs';
-      const doc = await P.getDocument({ url: file.url }).promise, pg = await doc.getPage(1), v = pg.getViewport({ scale: 2.5 }), c = document.createElement('canvas');
+      const doc = await P.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise, pg = await doc.getPage(1), v = pg.getViewport({ scale: 2.5 }), c = document.createElement('canvas');
       c.width = v.width; c.height = v.height;
       await pg.render({ canvas: c, canvasContext: c.getContext('2d'), viewport: v }).promise;
       return c;
     }
-    return await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => no(new Error('Không tải được bản gốc')); im.src = file.url; });
+    return await createImageBitmap(blob);
   }
   const dims = e => ({ w: e.naturalWidth || e.width, h: e.naturalHeight || e.height });
   const hitList = hits => `<div class="ck-hits">${hits.map((r, i) => `<div class="ck-hit"><div><b>${esc(r.name)}</b> · ${esc(r.type)}${r.status === 'revoked' ? ' · <span class="err">đã thu hồi</span>' : ''}<br><span class="muted">${esc([r.project, dmy(r.date), r.code && 'Mã ' + r.code, r.source !== 'fts' && r.sourceLabel].filter(Boolean).join(' · '))}</span></div>${r.file ? `<button type="button" class="btn btn-primary btn-sm" data-hit="${i}">So với ảnh của tôi</button>` : `<a class="btn btn-ghost btn-sm" href="${esc(r.url)}"${r.source !== 'fts' ? ' target="_blank" rel="noopener"' : ''}>Mở trang xác thực</a>`}</div>`).join('')}</div>`;
@@ -236,7 +240,7 @@
     catch (x) { console.error(x); res = { verdict: 'unsure', reason: 'Không so tự động được trên thiết bị này.' }; }
     const k = SV[res.verdict], reason = res.verdict === 'unsure' ? (res.reason || '') + ' Hãy chụp lại thẳng, đủ sáng, đủ cả tờ giấy, hoặc tự so hai ảnh dưới đây.' : k[3];
     const upImg = res.warped ? window.FTSAlign.marked(res.warped, res.W, res.H, res.regions) : slice(t.src, 0, 0, t.W, t.H, Math.min(1400, t.W));
-    const orImg = res.warped ? window.FTSAlign.marked(orig, res.W, res.H, res.regions) : orig;
+    const orImg = res.warped ? window.FTSAlign.marked(orig, res.W, res.H, res.regions) : canvasOf(od.w, od.h, g => g.drawImage(orig, 0, 0));
     box.innerHTML = `<div class="ver ver-${k[0]} ck-res"><div class="ver-top"><div class="ver-ic">${k[1]}</div><div><h1>${esc(k[2])}</h1><p>${esc(reason)}</p></div></div><p>Bản gốc: ${esc(r.type)} cấp cho <b>${esc(r.name)}</b>${r.project ? ' – ' + esc(r.project) : ''}, mã <code>${esc(r.code)}</code>.</p><div class="ck-imgs ck-side"><figure id="ckSideUp"><figcaption>Giấy bạn tải lên${res.warped ? ' (đã tự căn thẳng)' : ''}</figcaption></figure><figure id="ckSideOrig"><figcaption>Bản gốc Fly To Sky đã lưu</figcaption></figure></div>${res.regions?.length ? `<h2 class="ck-h">Chỗ khác (phóng to)</h2>${res.regions.slice(0, 4).map((g, i) => `<div class="ck-diff"><figure data-z="${i}" data-s="up"><figcaption>Giấy bạn tải lên</figcaption></figure><figure data-z="${i}" data-s="orig"><figcaption>Bản gốc</figcaption></figure></div>`).join('')}` : ''}<div id="ckAi"></div><p class="fine">Giấy không có mã QR được so bằng cách căn ảnh chụp theo bản gốc rồi so từng vùng. Ảnh lóa, nhòe hoặc giấy nhăn có thể cho kết quả “chưa so chắc được”.</p><p><a class="btn btn-primary btn-sm" href="${esc(r.url)}">Mở trang xác thực</a></p></div>`;
     $('#ckSideUp').prepend(upImg); orImg.style.width = '100%'; $('#ckSideOrig').prepend(orImg);
     if (res.regions?.length) {
