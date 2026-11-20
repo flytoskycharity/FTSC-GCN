@@ -15,7 +15,7 @@ export const ECOSYSTEM = [
   { id: 'megastory', title: 'Fly To Sky | Impact Megastory', desc: 'Hồ sơ giới thiệu năng lực Hệ thống từ thiện Fly To Sky', url: 'https://info.flytoskycharity.vn' },
   { id: 'chamcongdong', title: 'Chạm Cộng đồng', desc: 'Dự án thiện nguyện đưa tình nguyện viên đến gần hơn với đời sống địa phương thông qua trải nghiệm', url: 'https://chamcongdong.flytoskycharity.vn' },
   { id: 'khuyendoc', title: 'Tủ sách Bồ Câu Trắng', desc: 'Dự án khuyến đọc của Fly To Sky', url: 'https://khuyendoc.flytoskycharity.vn' },
-  { id: 'smileclass', title: 'Smile Class', desc: 'Hệ thống Quản lý vận hành Dự án Lớp học miễn phí vì cộng đồng Smile Class', url: 'https://quanlysmileclass.flytoskycharity.vn' },
+  { id: 'smileclass', title: 'Smile Class', desc: 'Dự án Lớp học miễn phí vì cộng đồng Smile Class (Lớp học Nụ cười)', url: 'https://lophocnucuoi.flytoskycharity.vn' },
 ];
 
 // Giữ liền cụm từ khi xuống dòng ("Tủ sách / Bồ Câu Trắng", không tách "Bồ Câu / Trắng").
