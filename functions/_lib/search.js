@@ -22,13 +22,17 @@ export async function searchLocal(env, settings, q) {
   // name_key chỉ gồm a-z, 0-9 và khoảng trắng nên không cần thoát ký tự LIKE. Khớp cả tên đầy đủ hoặc từ đầu một từ.
   else if (nameQueryOk(q)) add(await env.DB.prepare(base + "(c.name_key = ? OR c.name_key LIKE ? OR c.name_key LIKE ?) ORDER BY c.id DESC LIMIT " + NAME_LIMIT)
     .bind(key, key + '%', '% ' + key + '%').all());
-  return [...seen.values()].map(c => ({
+  const rows = [...seen.values()];
+  const shared = await Promise.all(rows.map(c => sharedFile(env, c)));
+  return rows.map((c, i) => ({
     source: 'fts', sourceLabel: settings.site.owner, type: c.doc_file ? docKindLabel(c) : c.amount > 0 ? 'Giấy chứng nhận ủng hộ' : 'Giấy chứng nhận',
     code: c.code, name: c.name, org: c.org, phone: maskPhone(c.phone), project: c.campaign_name,
     amount: c.amount > 0 ? c.amount : null, amountText: c.amount > 0 ? '' : (c.amount_text || settings.cert.programText),
     date: c.issued_date, status: c.status === 'revoked' ? 'revoked' : 'valid', url: verifyPath(c),
     // Tệp giấy đã ký (scan/PDF) để thẻ Kiểm tra giấy đặt cạnh ảnh người dùng chụp khi giấy không có mã QR.
     file: (c.doc_file || driveId(c.file_url)) && c.status !== 'revoked' ? { mime: c.doc_file ? c.doc_mime : '', url: `/api/cert-file?code=${encodeURIComponent(c.code)}&s=${c.sig}` } : null,
+    // Tệp gốc (link Drive) đang gắn cho cả giấy khác: thường do dán nhầm link khi nhập liệu → không so ảnh với tệp này.
+    fileShared: shared[i],
     adjusted: historyOf(c).map(h => ({ at: h.at, changes: h.changes })),
     documents: [
       ...(c.file_url ? [{ label: 'Bản gốc', url: c.file_url }] : []),
@@ -36,4 +40,16 @@ export async function searchLocal(env, settings, q) {
       ...(c.wants_confirm ? [{ label: 'Giấy xác nhận tài trợ', url: c.confirm_file || '', status: c.confirm_file ? '' : 'đang xử lý (7–10 ngày)' }] : []),
     ],
   }));
+}
+
+// Mã gốc bỏ đuôi -2, -3… (mã trùng ở hệ thống cũ được tách ra).
+export const baseCode = code => String(code || '').replace(/-\d+$/, '');
+
+// Các giấy KHÁC đang dùng chung tệp Google Drive với giấy c (bỏ qua bản tách MÃ/MÃ-2 của cùng một người).
+export async function sharedFile(env, c) {
+  const id = !c.doc_file && driveId(c.file_url);
+  if (!id) return [];
+  const { results } = await env.DB.prepare("SELECT code,name_key FROM certificates WHERE id<>? AND status<>'revoked' AND (doc_file IS NULL OR doc_file='') AND file_url LIKE ? ESCAPE '\\' LIMIT 6")
+    .bind(c.id, '%' + id.replace(/[%_\\]/g, '\\$&') + '%').all();
+  return (results || []).filter(o => !(baseCode(o.code) === baseCode(c.code) && o.name_key === c.name_key)).map(o => o.code);
 }

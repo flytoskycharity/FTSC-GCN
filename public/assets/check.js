@@ -233,6 +233,12 @@
   }
 
   async function compareWith(t, r, box) {
+    // Tệp gốc của mã này đang gắn chung cho giấy khác (thường do dán nhầm link khi nhập liệu): so ảnh sẽ so nhầm giấy, nên dừng và báo.
+    if (r.fileShared?.length) {
+      box.innerHTML = `<div class="ver ver-unsigned ck-res"><div class="ver-top"><div class="ver-ic">?</div><div><h1>Chưa so được: bản gốc trên hệ thống đang bị gắn nhầm tệp</h1><p>Giấy mã <code>${esc(r.code)}</code> cấp cho <b>${esc(r.name)}</b>${r.project ? ' – ' + esc(r.project) : ''} có trên hệ thống, nhưng tệp bản gốc lưu kèm đang dùng chung với giấy mã ${r.fileShared.map(c => '<code>' + esc(c) + '</code>').join(', ')}. Vì vậy chưa thể so ảnh của bạn với đúng bản gốc. Fly To Sky đã được báo để sửa; bạn có thể xem thông tin giấy ở trang xác thực.</p></div></div><p><a class="btn btn-primary btn-sm" href="${esc(r.url)}">Mở trang xác thực</a></p>${logged}</div>`;
+      report(t, 'unsure', { code: r.code, detail: `Giấy không có QR: tệp bản gốc của mã ${r.code} đang dùng chung với ${r.fileShared.join(', ')} (gắn nhầm link) – cần sửa "Link bản gốc".` });
+      return;
+    }
     box.innerHTML = '<div class="lk-wait"><span class="spin"></span>Đang mở bản gốc và căn ảnh để so từng vùng…</div>';
     let orig;
     try { orig = await originalView(r.file); } catch { box.innerHTML = `<p class="err">Không mở được bản gốc.</p><p><a class="btn btn-primary btn-sm" href="${esc(r.url)}">Mở trang xác thực</a></p>`; return; }
@@ -259,6 +265,13 @@
     const comp = canvasOf(cw, th + bh + 20, g => { g.drawImage(top, 0, 0, cw, th); g.fillStyle = '#000'; g.fillRect(0, th, cw, 20); g.drawImage(ob, 0, th + 20, cw, bh); });
     const a = await post('/api/ai-compare', { image: comp.toDataURL('image/jpeg', .85) });
     if (a.off) { aiBox.innerHTML = a.error ? `<p class="fine">${esc(a.error)}</p>` : ''; return; }
+    // Mã in trên tệp bản gốc khác mã của giấy: tệp gốc trên hệ thống bị gắn nhầm, không phải lỗi của giấy người dùng.
+    const nc = x => String(x || '').toUpperCase().replace(/\s+/g, '');
+    if (a.codeBottom && nc(a.codeBottom).length >= 4 && nc(a.codeBottom) !== nc(r.code)) {
+      aiBox.innerHTML = `<div class="ai-box"><h3>Lưu ý: bản gốc trên hệ thống có thể bị gắn nhầm tệp</h3><p>AI đọc được mã in trên tệp bản gốc là <code>${esc(a.codeBottom)}</code>, khác mã <code>${esc(r.code)}</code> của giấy này. Kết quả so ảnh ở trên vì vậy chưa đáng tin; Fly To Sky đã được báo để kiểm tra lại tệp bản gốc.</p></div>`;
+      report(t, 'unsure', { code: r.code, detail: `Giấy không có QR: tệp bản gốc của mã ${r.code} in mã ${a.codeBottom} (AI đọc) – có thể gắn nhầm "Link bản gốc".` });
+      return;
+    }
     aiBox.innerHTML = `<div class="ai-box"><h3>Nhận xét của AI <span class="muted">(chỉ để tham khảo)</span></h3>${a.differences?.length ? `<ul>${a.differences.map(d => `<li>${esc(d)}</li>`).join('')}</ul>` : `<p>${a.same ? 'AI không thấy khác biệt rõ về chữ in trên giấy.' : 'AI chưa chỉ ra được khác biệt cụ thể.'}</p>`}<p class="fine">AI có thể nhầm. Hãy xem kỹ vùng tô đỏ trên ảnh.</p></div>`;
   }
 

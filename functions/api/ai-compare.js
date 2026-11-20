@@ -10,7 +10,8 @@ Chỉ so CHỮ IN trên hai tờ: họ tên, nội dung, ngày tháng, mã giấ
 Bỏ qua khác biệt do ánh sáng, độ nghiêng, độ mờ của ảnh chụp. Chỉ nêu khác biệt bạn đọc rõ được ở CẢ HAI tờ; chữ nào đọc không chắc thì bỏ qua, không đoán.
 Trả lời bằng MỘT đối tượng JSON, viết tiếng Việt, không thêm chữ nào khác:
 {"same": true nếu nội dung hai tờ giống nhau, false nếu có chỗ khác,
- "differences": ["mỗi khác biệt một câu ngắn, ví dụ: Họ tên trên ảnh chụp là X, bản gốc là Y"]}`;
+ "differences": ["mỗi khác biệt một câu ngắn, ví dụ: Họ tên trên ảnh chụp là X, bản gốc là Y"],
+ "code_bottom": "mã giấy in trên tờ NỬA DƯỚI (thường sau 'Mã GCN'), chép đúng từng ký tự; để trống nếu không đọc rõ"}`;
 
 export async function onRequestPost({ request, env }) {
   if (!env.DB) return json({ error: 'Hệ thống chưa sẵn sàng.' }, 503);
@@ -25,6 +26,6 @@ export async function onRequestPost({ request, env }) {
     const r = await askVision(env, PROMPT, b.image, 400);
     if (!r) return json({ off: true, error: 'AI chưa đưa ra nhận xét rõ ràng.' });
     const differences = (Array.isArray(r.differences) ? r.differences : []).map(d => clip(d, 300)).filter(Boolean).slice(0, 8);
-    return json({ same: r.same === true && !differences.length, differences });
+    return json({ same: r.same === true && !differences.length, differences, codeBottom: clip(r.code_bottom, 80) });
   } catch { return json({ off: true, error: 'AI tạm thời không phản hồi.' }); }
 }

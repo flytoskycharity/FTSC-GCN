@@ -134,4 +134,15 @@ await j('/api/admin/certificates', { action: 'revoke', id: list.items[0].id, rea
 assert.match(await (await call(st.cert.url)).text(), /đã bị thu hồi/);
 const found = await j('/api/lookup?q=0902000222');
 assert.ok(found.results[0].documents.some(d => d.label === 'Giấy xác nhận tài trợ'), 'hiện yêu cầu Giấy xác nhận tài trợ');
+
+// Hai giấy khác nhau bị dán nhầm cùng một link bản gốc: tra cứu báo fileShared, Tổng quan quản trị liệt kê để sửa.
+const drv = 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view';
+const sa = (await j('/api/admin/certificates', { action: 'create', campaign: id, record: { name: 'Trùng Tệp Một', phone: '0903111222', amount: '100000', file_url: drv } })).created[0];
+const sb = (await j('/api/admin/certificates', { action: 'create', campaign: id, record: { name: 'Trùng Tệp Hai', phone: '0903111333', amount: '100000', file_url: drv.replace('/view', '/view?usp=sharing') } })).created[0];
+const la = (await j('/api/lookup?q=0903111222')).results.find(r => r.code === sa.code);
+assert.deepEqual(la.fileShared, [sb.code], 'phát hiện tệp bản gốc dùng chung với giấy khác');
+const lone = (await j('/api/lookup?q=901000111')).results.find(r => r.code === cert.code);
+assert.deepEqual(lone.fileShared, [], 'giấy không gắn link thì không báo');
+const st2 = await j('/api/admin/stats');
+assert.ok(st2.sharedCount >= 1 && st2.sharedFiles.some(g => g.some(c => c.code === sa.code) && g.some(c => c.code === sb.code)), 'Tổng quan liệt kê nhóm tệp dùng chung');
 console.log('OK – smoke test đạt');
