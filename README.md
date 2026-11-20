@@ -23,7 +23,7 @@ Chạy trên **Cloudflare Pages** (cùng kiến trúc với Tủ sách Bồ Câu
 ## Tệp giấy cấp ở nơi khác & chữ ký số
 Admin → Giấy chứng nhận → Sửa → **Tệp giấy đã cấp**: chọn loại (Giấy khen / Giấy chứng nhận / Khác) và hình thức.
 
-**Luồng nhập nhanh:** Admin → Giấy chứng nhận → **+ Nhập giấy đã ký**. Nhập họ tên, dự án, ngày cấp, loại giấy, chọn bản scan ký tay hoặc PDF ký số và tải tệp lên. Hệ thống kiểm tra tệp trước khi tạo hồ sơ, lưu bản gốc vào R2 riêng tư, cấp mã và liên kết xác thực trong một lần. Bản scan được ghi nhận là do tài khoản quản trị Fly To Sky tải lên, không tự chứng thực chữ ký tay. Ảnh JPG/PNG/WEBP tải lại đúng tệp sẽ được đối chiếu bằng SHA-256 tại mục Kiểm tra giấy ngay cả khi không có QR; ảnh chụp mới hoặc scan lại phải đối chiếu thủ công. PDF vẫn kiểm tra chữ ký và có hướng dẫn kiểm tra lại tại NEAC như trước.
+**Luồng nhập nhanh:** Admin → Giấy chứng nhận → **+ Nhập giấy đã ký**. Nhập họ tên, dự án, ngày cấp, loại giấy, chọn bản scan ký tay hoặc PDF ký số và tải tệp lên. Hệ thống kiểm tra tệp trước khi tạo hồ sơ, lưu bản gốc vào R2 riêng tư, cấp mã và liên kết xác thực trong một lần. Bản scan được ghi nhận là do tài khoản quản trị Fly To Sky tải lên, không tự chứng thực chữ ký tay. Ảnh JPG/PNG/WEBP tải lại đúng tệp sẽ được đối chiếu bằng SHA-256 tại mục Kiểm tra giấy ngay cả khi không có QR. Ảnh chụp mới hoặc scan lại của giấy không có QR (giấy khen, giấy ký tay cũ): thẻ Kiểm tra giấy mời người dùng nhập mã in trên giấy hoặc họ tên, rồi đặt bản gốc đã lưu cạnh ảnh vừa chụp để so bằng mắt. PDF vẫn kiểm tra chữ ký và có hướng dẫn kiểm tra lại tại NEAC như trước.
 
 Chỉ nhận 2 hình thức:
 - **Bản scan có chữ ký tay** (ảnh JPG/PNG/WEBP hoặc PDF).

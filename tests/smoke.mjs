@@ -71,6 +71,13 @@ assert.equal(scanCheck.match?.code, signedCert.code, 'đối chiếu file scan �
 const editedJpg = new Uint8Array(jpg); editedJpg[5] ^= 1;
 const editedRes = await fetch(B + '/api/verify-file', { method: 'POST', headers: { Origin: B, 'Content-Type': 'image/jpeg' }, body: editedJpg });
 assert.equal((await editedRes.json()).match, null, 'không xác thực ảnh đã thay đổi');
+// Ảnh chụp lại giấy không có QR: tìm theo tên phải trả về tệp bản gốc để đặt cạnh ảnh người dùng chụp.
+const byName = await (await fetch(B + '/api/lookup?q=' + encodeURIComponent('Tình Nguyện Viên Ký Tay'))).json();
+const hit = byName.results.find(r => r.code === signedCert.code);
+assert.ok(hit?.file?.url && hit.file.mime === 'image/jpeg', 'tra cứu theo tên trả về tệp bản gốc');
+assert.equal((await fetch(B + hit.file.url)).status, 200, 'mở được tệp bản gốc từ kết quả tra cứu');
+const byCode = await (await fetch(B + '/api/lookup?q=' + encodeURIComponent(signedCert.code))).json();
+assert.ok(byCode.results.some(r => r.code === signedCert.code && r.file), 'tra cứu theo mã in trên giấy trả về tệp bản gốc');
 assert.equal((await fetch(B + '/api/cert-file?code=' + encodeURIComponent(signedCert.code) + '&s=WRONG')).status, 404, 'không cho đọc tệp nếu sai mã xác thực');
 assert.ok((await j('/api/admin/certificates?source=signed')).items.some(c => c.code === signedCert.code && c.doc_type === 'scan'), 'có lọc nguồn giấy nhập đã ký');
 
