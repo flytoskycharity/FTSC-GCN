@@ -6,8 +6,8 @@ import { json, readJson, clip } from '../_lib/util.js';
 import { aiReady, aiLimited, askVision, imageOk } from '../_lib/ai.js';
 
 const PROMPT = `Ảnh này ghép hai tờ giấy: NỬA TRÊN là ảnh người dùng chụp, NỬA DƯỚI là bản gốc lưu trên hệ thống.
-Hãy so chữ in trên hai tờ: họ tên, nội dung, ngày tháng, mã giấy, chức danh người ký; và xem chữ ký, con dấu có giống nhau không.
-Bỏ qua khác biệt do ánh sáng, độ nghiêng, độ mờ của ảnh chụp. Chỉ nêu khác biệt bạn nhìn thấy rõ, không đoán.
+Chỉ so CHỮ IN trên hai tờ: họ tên, nội dung, ngày tháng, mã giấy, tên người ký. Không nhận xét chữ ký tay và con dấu.
+Bỏ qua khác biệt do ánh sáng, độ nghiêng, độ mờ của ảnh chụp. Chỉ nêu khác biệt bạn đọc rõ được ở CẢ HAI tờ; chữ nào đọc không chắc thì bỏ qua, không đoán.
 Trả lời bằng MỘT đối tượng JSON, viết tiếng Việt, không thêm chữ nào khác:
 {"same": true nếu nội dung hai tờ giống nhau, false nếu có chỗ khác,
  "differences": ["mỗi khác biệt một câu ngắn, ví dụ: Họ tên trên ảnh chụp là X, bản gốc là Y"]}`;

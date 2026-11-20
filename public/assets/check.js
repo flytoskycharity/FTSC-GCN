@@ -259,7 +259,7 @@
     const comp = canvasOf(cw, th + bh + 20, g => { g.drawImage(top, 0, 0, cw, th); g.fillStyle = '#000'; g.fillRect(0, th, cw, 20); g.drawImage(ob, 0, th + 20, cw, bh); });
     const a = await post('/api/ai-compare', { image: comp.toDataURL('image/jpeg', .85) });
     if (a.off) { aiBox.innerHTML = a.error ? `<p class="fine">${esc(a.error)}</p>` : ''; return; }
-    aiBox.innerHTML = `<div class="ai-box"><h3>Nhận xét của AI <span class="muted">(chỉ để tham khảo)</span></h3>${a.differences?.length ? `<ul>${a.differences.map(d => `<li>${esc(d)}</li>`).join('')}</ul>` : `<p>${a.same ? 'AI không thấy khác biệt rõ về chữ, chữ ký, con dấu.' : 'AI chưa chỉ ra được khác biệt cụ thể.'}</p>`}<p class="fine">AI có thể nhầm. Hãy xem kỹ vùng tô đỏ trên ảnh.</p></div>`;
+    aiBox.innerHTML = `<div class="ai-box"><h3>Nhận xét của AI <span class="muted">(chỉ để tham khảo)</span></h3>${a.differences?.length ? `<ul>${a.differences.map(d => `<li>${esc(d)}</li>`).join('')}</ul>` : `<p>${a.same ? 'AI không thấy khác biệt rõ về chữ in trên giấy.' : 'AI chưa chỉ ra được khác biệt cụ thể.'}</p>`}<p class="fine">AI có thể nhầm. Hãy xem kỹ vùng tô đỏ trên ảnh.</p></div>`;
   }
 
   async function check(f) {
