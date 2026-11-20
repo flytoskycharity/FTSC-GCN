@@ -175,4 +175,29 @@ const lone = (await j('/api/lookup?q=901000111')).results.find(r => r.code === c
 assert.deepEqual(lone.fileShared, [], 'giấy không gắn link thì không báo');
 const st2 = await j('/api/admin/stats');
 assert.ok(st2.sharedCount >= 1 && st2.sharedFiles.some(g => g.some(c => c.code === sa.code) && g.some(c => c.code === sb.code)), 'Tổng quan liệt kê nhóm tệp dùng chung');
+// Trồng rừng: 50.000đ = 1 cây. Số tiền chia hết → mẫu quy đổi (có ô units); số lẻ → mẫu ghi tiền, không quy đổi.
+{
+  const H = { Origin: B, 'Content-Type': 'application/json', Cookie: cookie };
+  const api = (u, b) => fetch(B + u, { method: 'POST', headers: H, body: JSON.stringify(b) }).then(r => r.json());
+  const camp = await api('/api/admin/campaigns', { action: 'save', record: { title: 'Trồng rừng thử', status: 'open', kind: 'money', unit_price: 50000, unit_name: 'cây' } });
+  const f = k => ({ key: k, x: 50, y: 50, size: 2 });
+  const tTree = await api('/api/admin/templates', { action: 'save', record: { name: 'Quy đổi cây', campaign_id: camp.id, enabled: true, fields: [f('name'), f('units'), f('code')] } });
+  const tMoney = await api('/api/admin/templates', { action: 'save', record: { name: 'Ghi tiền', campaign_id: camp.id, enabled: true, fields: [f('name'), f('amount'), f('code')] } });
+  assert.ok(tTree.id && tMoney.id, 'tạo 2 mẫu trồng rừng');
+  for (let i = 0; i < 4; i++) {
+    const a = await api('/api/admin/certificates', { action: 'create', record: { name: 'Bội Số ' + i, campaign_id: camp.id, amount: 150000 } });
+    const b = await api('/api/admin/certificates', { action: 'create', record: { name: 'Số Lẻ ' + i, campaign_id: camp.id, amount: 120000 } });
+    const get = async r => { const code = r.created[0].code; const j = await (await fetch(B + '/api/admin/certificates?q=' + encodeURIComponent(code), { headers: { Cookie: cookie } })).json(); return (j.items || j.certificates || []).find(x => x.code === code); };
+    const ca = await get(a), cb = await get(b);
+    assert.equal(ca.template_id, tTree.id, '150.000đ dùng mẫu quy đổi'); assert.equal(ca.units, '3 cây');
+    assert.equal(cb.template_id, tMoney.id, '120.000đ dùng mẫu ghi tiền'); assert.equal(cb.units, '', 'số lẻ không quy đổi ra cây');
+  }
+  // Giấy cũ cấp sai (150.000đ nhưng in bằng mẫu ghi tiền) → nút "Chọn lại mẫu" sửa thành mẫu quy đổi 3 cây.
+  const wrong = await api('/api/admin/certificates', { action: 'create', record: { name: 'Cấp Sai', campaign_id: camp.id, amount: 150000, template_id: tMoney.id, units: '' } });
+  const re = await api('/api/admin/campaigns', { action: 'retemplate', id: camp.id });
+  assert.equal(re.changed, 1, 'chỉ sửa giấy cấp sai mẫu');
+  const fixed = (await (await fetch(B + '/api/admin/certificates?q=' + wrong.created[0].code, { headers: { Cookie: cookie } })).json());
+  const fx2 = (fixed.items || fixed.certificates).find(x => x.code === wrong.created[0].code);
+  assert.equal(fx2.template_id, tTree.id); assert.equal(fx2.units, '3 cây');
+}
 console.log('OK – smoke test đạt');

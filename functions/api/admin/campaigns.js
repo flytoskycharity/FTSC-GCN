@@ -1,7 +1,8 @@
 import { adminApi, log } from '../../_lib/auth.js';
 import { raisedOf, FUND_SLUG, loadSettings } from '../../_lib/db.js';
 import { syncKhuyendoc } from '../../_lib/external.js';
-import { json, readJson, slugify, clip, money } from '../../_lib/util.js';
+import { json, readJson, slugify, clip, money, unitsOf } from '../../_lib/util.js';
+import { pickTemplate, tplRule, wantRule } from '../../_lib/certs.js';
 
 const STATUS = ['draft', 'open', 'closed', 'hidden'];
 const dt = v => { const m = String(v || '').match(/^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}))?/); return m ? m[1] + 'T' + (m[2] || '00:00') : ''; };
@@ -17,6 +18,29 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
   if (b.action === 'syncKhuyendoc') {
     try { const r = await syncKhuyendoc(env, await loadSettings(env), { force: true }); if (r.skipped) return json({ error: r.reason || 'Chưa đồng bộ được' }, 400); await log(env, me, `đồng bộ dự án Tủ sách Bồ Câu Trắng: thêm ${r.added}, cập nhật ${r.updated}`); return json(r); }
     catch (e) { return json({ error: e.message }, 502); }
+  }
+  if (b.action === 'retemplate') {
+    // Chọn lại mẫu cho giấy đã cấp của dự án có quy đổi: số tiền chia hết → mẫu quy đổi (in số cây), số lẻ → mẫu ghi tiền.
+    const c = await env.DB.prepare('SELECT * FROM campaigns WHERE id=?').bind(Number(b.id) || 0).first();
+    if (!c || !(Number(c.unit_price) > 0)) return json({ error: 'Dự án chưa đặt đơn giá quy đổi.' }, 400);
+    const { results } = await env.DB.prepare("SELECT id, amount, template_id, units FROM certificates WHERE campaign_id=? AND amount>0 AND doc_file='' AND gift!='items' AND status!='revoked'").bind(c.id).all();
+    const tpl = new Map(), getT = async id => { if (!tpl.has(id)) tpl.set(id, id ? await env.DB.prepare('SELECT id, fields, amount_rule FROM templates WHERE id=?').bind(id).first() : { fields: '[]', amount_rule: '' }); return tpl.get(id); };
+    let changed = 0, missing = 0;
+    for (const x of results || []) {
+      const want = wantRule(x.amount, c), cur = await getT(x.template_id || 0);
+      let tid = x.template_id;
+      if (!cur || tplRule(cur) !== want) {
+        const nid = await pickTemplate(env, c.id, x.amount, 'money'), nt = await getT(nid);
+        if (!nt || tplRule(nt) !== want) { missing++; continue; } // dự án chưa có mẫu đúng loại
+        tid = nid;
+      }
+      const units = want === 'units' ? unitsOf(x.amount, c) : '';
+      if (tid === x.template_id && units === (x.units || '')) continue;
+      await env.DB.prepare('UPDATE certificates SET template_id=?, units=?, img_ok=0 WHERE id=?').bind(tid, units, x.id).run();
+      changed++;
+    }
+    await log(env, me, `chọn lại mẫu giấy theo bội số cho dự án ${c.title}: ${changed} giấy`);
+    return json({ ok: true, changed, missing, total: (results || []).length });
   }
   if (b.action === 'delete') {
     const id = Number(b.id) || 0;

@@ -53,11 +53,24 @@ export function parseTemplate(row) {
 
 // Một dự án có nhiều mẫu: lấy mẫu đang bật có mức tiền tối thiểu cao nhất mà số tiền đạt tới;
 // nhiều mẫu cùng mức thì chọn ngẫu nhiên. Không có mẫu của dự án thì dùng mẫu chung, cuối cùng là mẫu mặc định.
+// Mẫu quy đổi hay mẫu ghi tiền. amount_rule: 'units' | 'money' | '' (tự động: mẫu có ô "Số lượng quy đổi" là mẫu quy đổi).
+export const tplRule = t => t?.amount_rule || (/"key"\s*:\s*"units"/.test(t?.fields || '') ? 'units' : 'money');
+// Dự án có quy đổi (VD 50.000đ = 1 cây): số tiền chia hết → mẫu quy đổi ra cây; số tiền lẻ → mẫu ghi bằng tiền.
+export const wantRule = (amount, campaign) => {
+  const up = Number(campaign?.unit_price) || 0;
+  return up > 0 && Number(amount) > 0 ? (Number(amount) % up === 0 ? 'units' : 'money') : '';
+};
+
 // gift: 'money' | 'items' – mẫu dành riêng cho loại đóng góp được ưu tiên, mẫu "mọi loại" (gift_kind rỗng) dùng chung.
 export async function pickTemplate(env, campaignId, amount, gift = 'money') {
+  const camp = Number(campaignId) ? await env.DB.prepare('SELECT unit_price FROM campaigns WHERE id=?').bind(Number(campaignId)).first() : null;
+  const want = gift === 'money' ? wantRule(amount, camp) : '';
   for (const cid of [Number(campaignId) || 0, 0]) {
     const { results: all } = await env.DB.prepare('SELECT * FROM templates WHERE campaign_id=? AND enabled=1').bind(cid).all();
-    const own = (all || []).filter(t => t.gift_kind === gift), results = own.length ? own : (all || []).filter(t => !t.gift_kind);
+    const own = (all || []).filter(t => t.gift_kind === gift);
+    let results = own.length ? own : (all || []).filter(t => !t.gift_kind);
+    // Có cả mẫu quy đổi lẫn mẫu ghi tiền thì chọn đúng loại theo số tiền chia hết hay lẻ.
+    if (want) { const fit = results.filter(t => tplRule(t) === want); if (fit.length) results = fit; }
     const list = (results || []).filter(t => !amount || !t.min_amount || amount >= t.min_amount);
     const fallback = (results || []).filter(t => !t.min_amount);
     const pool = list.length ? list : fallback;
@@ -95,7 +108,12 @@ export async function issueCertificate(env, settings, data) {
     ? Number(data.template_id) : await pickTemplate(env, campaign?.id || 0, amount || 0, data.gift === 'items' ? 'items' : 'money');
   const name = String(data.name || '').trim().slice(0, 160) || settings.donate.anonymousName;
   const sig = await certSig(env, code);
-  const units = data.units !== undefined ? String(data.units || '').slice(0, 80) : unitsOf(amount, campaign);
+  let units = data.units !== undefined ? String(data.units || '').slice(0, 80) : unitsOf(amount, campaign);
+  // Số tiền lẻ (không chia hết đơn giá) in bằng mẫu ghi tiền thì không quy đổi ra cây.
+  if (data.units === undefined && wantRule(amount, campaign) === 'money' && templateId) {
+    const t = await env.DB.prepare('SELECT fields, amount_rule FROM templates WHERE id=?').bind(templateId).first();
+    if (t && tplRule(t) === 'money') units = '';
+  }
   const r = await env.DB.prepare(`INSERT INTO certificates(code,sig,campaign_id,campaign_name,name,name_key,phone,org,amount,amount_text,issued_date,template_id,source,file_url,donation_id,note,created_by,units)
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
     code, sig, campaign?.id || 0, String(data.campaign_name || campaign?.title || '').slice(0, 200), name, nameKey(name),

@@ -42,15 +42,16 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     JSON.stringify(cleanFields(r.fields)), money(r.min_amount), r.enabled === false || r.enabled === 0 ? 0 : 1];
   // Dùng cho: '' mọi lượt, 'money' ủng hộ tiền, 'items' ủng hộ hiện vật (Giấy xác nhận ủng hộ hiện vật).
   const gift = ['money', 'items'].includes(r.gift_kind) ? r.gift_kind : '';
+  const rule = ['units', 'money'].includes(r.amount_rule) ? r.amount_rule : '';
   if (id) {
-    await env.DB.prepare("UPDATE templates SET gift_kind=? WHERE id=?").bind(gift, id).run();
+    await env.DB.prepare("UPDATE templates SET gift_kind=?, amount_rule=? WHERE id=?").bind(gift, rule, id).run();
     await env.DB.prepare('UPDATE templates SET campaign_id=?,name=?,background=?,width=?,height=?,fields=?,min_amount=?,enabled=?,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(...v, id).run();
     await staleImages(env, 'template_id=?', [id]); // giấy dùng mẫu này được ghép lại ảnh
     await log(env, me, 'sửa mẫu ' + v[1]);
     return json({ ok: true, id });
   }
   const res = await env.DB.prepare('INSERT INTO templates(campaign_id,name,background,width,height,fields,min_amount,enabled) VALUES(?,?,?,?,?,?,?,?)').bind(...v).run();
-  await env.DB.prepare("UPDATE templates SET gift_kind=? WHERE id=?").bind(gift, res.meta.last_row_id).run();
+  await env.DB.prepare("UPDATE templates SET gift_kind=?, amount_rule=? WHERE id=?").bind(gift, rule, res.meta.last_row_id).run();
   await log(env, me, 'tạo mẫu ' + v[1]);
   return json({ ok: true, id: res.meta.last_row_id });
 });

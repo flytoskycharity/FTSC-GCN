@@ -46,7 +46,7 @@ const COLUMNS = [
   ['donations', "tracking TEXT NOT NULL DEFAULT ''"], ['donations', "ship_date TEXT NOT NULL DEFAULT ''"], ['donations', "photos TEXT NOT NULL DEFAULT ''"],
   ['donations', "received_items TEXT NOT NULL DEFAULT ''"], ['donations', "received_note TEXT NOT NULL DEFAULT ''"],
   ['campaigns', "items_accept INTEGER NOT NULL DEFAULT 0"], ['campaigns', "item_types TEXT NOT NULL DEFAULT ''"], ['campaigns', "item_note TEXT NOT NULL DEFAULT ''"],
-  ['templates', "gift_kind TEXT NOT NULL DEFAULT ''"], ['certificates', "gift TEXT NOT NULL DEFAULT ''"],
+  ['templates', "gift_kind TEXT NOT NULL DEFAULT ''"], ['templates', "amount_rule TEXT NOT NULL DEFAULT ''"], ['certificates', "gift TEXT NOT NULL DEFAULT ''"],
 ];
 export const FUND_SLUG = 'quy-chung';
 

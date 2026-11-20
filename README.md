@@ -25,6 +25,12 @@ Admin → Giấy chứng nhận → Sửa → **Tệp giấy đã cấp**: chọ
 
 **Luồng nhập nhanh:** Admin → Giấy chứng nhận → **+ Nhập giấy đã ký**. Nhập họ tên, dự án, ngày cấp, loại giấy, chọn bản scan ký tay hoặc PDF ký số và tải tệp lên. Hệ thống kiểm tra tệp trước khi tạo hồ sơ, lưu bản gốc vào R2 riêng tư, cấp mã và liên kết xác thực trong một lần. Bản scan được ghi nhận là do tài khoản quản trị Fly To Sky tải lên, không tự chứng thực chữ ký tay. Ảnh JPG/PNG/WEBP tải lại đúng tệp sẽ được đối chiếu bằng SHA-256 tại mục Kiểm tra giấy ngay cả khi không có QR. Ảnh chụp mới hoặc scan lại của giấy không có QR (giấy khen, giấy ký tay cũ): thẻ Kiểm tra giấy mời người dùng nhập mã in trên giấy hoặc họ tên, rồi mở bản gốc đã lưu. Trình duyệt tự căn ảnh chụp theo bản gốc (tìm điểm đặc trưng + phép chiếu), so từng vùng sau khi cân bằng sáng, tô đỏ và phóng to chỗ khác, kết luận 3 mức: *Khớp bản gốc* / *Có chỗ khác* / *Chưa so chắc được*. Phần so ảnh chạy trên máy người dùng (`public/assets/align.js`), không tốn phí.
 
+### Dự án quy đổi (VD trồng rừng: 50.000đ = 1 cây) – 2 mẫu giấy
+- Số tiền **chia hết** đơn giá (50.000đ, 100.000đ…) → **mẫu quy đổi** (mẫu có ô *Số lượng quy đổi*, in VD "3" cây).
+- Số tiền **lẻ** (VD 120.000đ) → **mẫu ghi bằng tiền**, không quy đổi ra cây.
+- Mặc định hệ thống tự nhận biết theo ô *Số lượng quy đổi* trên mẫu; có thể chỉ định ở Mẫu giấy → *Dự án có quy đổi: dùng mẫu này khi*.
+- Giấy đã cấp trước đây: Dự án → Sửa → **Chọn lại mẫu cho các giấy đã cấp theo quy tắc này** (chỉ đổi giấy sai mẫu, ảnh giấy được ghép lại).
+
 ### Quyên góp hiện vật (sách, máy tính, màn hình…)
 - Bật cho từng dự án: Admin → **Dự án** → Sửa → *Nhận quyên góp hiện vật*, khai danh mục (mỗi dòng `Tên | đơn vị | mục tiêu`) và yêu cầu về hiện vật.
 - Người gửi đăng ký tại `/ung-ho/hien-vat` (nút có sẵn trên trang dự án và trang Quyên góp): hiện vật + số lượng, thông tin người gửi (họ tên, SĐT, địa chỉ), hình thức gửi (bưu điện/đơn vị vận chuyển hoặc mang trực tiếp), **văn phòng nhận chỉ Hà Nội hoặc Gia Lai** (Cài đặt → Quyên góp hiện vật), cam kết **trả trước phí vận chuyển (không COD)**, rồi khai **đơn vị vận chuyển, mã bưu gửi, ngày gửi, ảnh bưu gửi** — ngay lúc đăng ký hoặc bổ sung sau bằng đường dẫn riêng `/ung-ho/hien-vat?gui=…`.
