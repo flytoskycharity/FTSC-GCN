@@ -34,11 +34,26 @@ export async function currentAdmin(request, env) {
   } catch { return null; }
 }
 
+// Phiên giữ 30 ngày và tự gia hạn khi đang dùng (xem renewSession) để PWA/máy tính không phải đăng nhập lại.
+const DAYS = 30, TTL = DAYS * 86400e3;
 export async function makeSession(env, u) {
-  const exp = String(Date.now() + 8 * 3600e3), v = [u.id, u.session_rev || 0, exp].join('.');
-  return `${COOKIE}=${v}.${await hmac(env.ADMIN_SESSION_SECRET, v)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=28800`;
+  const exp = String(Date.now() + TTL), v = [u.id, u.session_rev || 0, exp].join('.');
+  return `${COOKIE}=${v}.${await hmac(env.ADMIN_SESSION_SECRET, v)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${DAYS * 86400}`;
 }
-export const clearSession = () => `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
+export const clearSession = () => `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+
+// Gia hạn phiên (tối đa 1 lần/ngày) khi người dùng còn hoạt động.
+export async function renewSession(request, env, res) {
+  if (res.headers.has('Set-Cookie') || res.status === 101) return res;
+  const m = (request.headers.get('cookie') || '').match(new RegExp('(?:^|;\\s*)' + COOKIE + '=([^;]+)'));
+  const exp = m && Number(m[1].split('.')[2]);
+  if (!exp || exp - Date.now() > TTL - 86400e3) return res;
+  const u = await currentAdmin(request, env);
+  if (!u) return res;
+  const r = new Response(res.body, res);
+  r.headers.append('Set-Cookie', await makeSession(env, u));
+  return r;
+}
 
 export function sameOrigin(request) {
   try {

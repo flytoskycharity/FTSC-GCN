@@ -109,6 +109,7 @@
   }
   function loginView() {
     app.innerHTML = `<div class="login"><form id="lf"><img src="/brand/fts-logo-pair.png" alt="Fly To Sky"><h1>Quản trị Cổng tra cứu GCN</h1><p class="sub">Hệ thống từ thiện Fly To Sky</p>${field('username', 'Tên đăng nhập', '', { required: true })}${field('password', 'Mật khẩu', '', { type: 'password', required: true })}<button class="btn" style="width:100%;justify-content:center">Đăng nhập</button><p class="err" hidden></p></form></div>`;
+    { const lf = document.getElementById('lf'); lf.elements.username?.setAttribute('autocomplete', 'username'); lf.elements.password?.setAttribute('autocomplete', 'current-password'); }
     $('#lf').addEventListener('submit', async e => {
       e.preventDefault();
       const err = $('#lf .err'); err.hidden = true;
