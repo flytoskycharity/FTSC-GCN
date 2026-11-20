@@ -3,7 +3,7 @@
 import { currentAdmin } from '../_lib/auth.js';
 import { DEFAULT_BG_SVG } from '../_lib/default-bg.js';
 
-const PROTECTED = /^(private|templates|signs|_default)\//;
+const PROTECTED = /^(private|templates|signs|_default|parcels)\//; // parcels: ảnh bưu gửi hiện vật (có thông tin người gửi)
 
 export async function onRequestGet({ request, env, params }) {
   const key = (Array.isArray(params.path) ? params.path : [params.path]).join('/');

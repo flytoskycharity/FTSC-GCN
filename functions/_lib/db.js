@@ -40,6 +40,13 @@ const COLUMNS = [
   ['donations', "tax_code TEXT NOT NULL DEFAULT ''"], ['donations', "address TEXT NOT NULL DEFAULT ''"],
   ['donations', "wants_confirm INTEGER NOT NULL DEFAULT 0"], ['donations', "confirm_file TEXT NOT NULL DEFAULT ''"],
   ['donations', "message TEXT NOT NULL DEFAULT ''"], ['donations', "reported_at TEXT NOT NULL DEFAULT ''"],
+  // Quyên góp hiện vật (sách, máy tính…): người gửi tự trả phí vận chuyển, gửi về văn phòng nhận.
+  ['donations', "kind TEXT NOT NULL DEFAULT 'money'"], ['donations', "items TEXT NOT NULL DEFAULT ''"], ['donations', "est_value INTEGER NOT NULL DEFAULT 0"],
+  ['donations', "ship_method TEXT NOT NULL DEFAULT ''"], ['donations', "office TEXT NOT NULL DEFAULT ''"], ['donations', "carrier TEXT NOT NULL DEFAULT ''"],
+  ['donations', "tracking TEXT NOT NULL DEFAULT ''"], ['donations', "ship_date TEXT NOT NULL DEFAULT ''"], ['donations', "photos TEXT NOT NULL DEFAULT ''"],
+  ['donations', "received_items TEXT NOT NULL DEFAULT ''"], ['donations', "received_note TEXT NOT NULL DEFAULT ''"],
+  ['campaigns', "items_accept INTEGER NOT NULL DEFAULT 0"], ['campaigns', "item_types TEXT NOT NULL DEFAULT ''"], ['campaigns', "item_note TEXT NOT NULL DEFAULT ''"],
+  ['templates', "gift_kind TEXT NOT NULL DEFAULT ''"], ['certificates', "gift TEXT NOT NULL DEFAULT ''"],
 ];
 export const FUND_SLUG = 'quy-chung';
 

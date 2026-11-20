@@ -6,7 +6,7 @@ const SITE = 'https://certificates.flytoskycharity.vn';
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
 
 export async function onRequestGet({ env }) {
-  const urls = [['/', ''], ['/tra-cuu', ''], ['/du-an', ''], ['/ung-ho', ''], ['/sao-ke', '']];
+  const urls = [['/', ''], ['/tra-cuu', ''], ['/du-an', ''], ['/ung-ho', ''], ['/ung-ho/hien-vat', ''], ['/sao-ke', '']];
   if (env.DB) {
     try {
       await initializeDatabase(env);

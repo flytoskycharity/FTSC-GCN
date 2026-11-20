@@ -73,6 +73,34 @@ assert.equal(scanCheck.match?.code, signedCert.code, 'đối chiếu file scan �
 const editedJpg = new Uint8Array(jpg); editedJpg[5] ^= 1;
 const editedRes = await fetch(B + '/api/verify-file', { method: 'POST', headers: { Origin: B, 'Content-Type': 'image/jpeg' }, body: editedJpg });
 assert.equal((await editedRes.json()).match, null, 'không xác thực ảnh đã thay đổi');
+// Quyên góp hiện vật: dự án nhận sách → người gửi đăng ký kèm bưu gửi → admin kiểm đếm → Giấy xác nhận ủng hộ hiện vật.
+{
+  const H = { Origin: B, 'Content-Type': 'application/json', Cookie: cookie };
+  const camp = await (await fetch(B + '/api/admin/campaigns', { method: 'POST', headers: H, body: JSON.stringify({ action: 'save', record: { title: 'Tủ sách hiện vật', status: 'open', kind: 'program', items_accept: true, item_types: 'Sách | cuốn | 100' } }) })).json();
+  assert.ok(camp.id, 'tạo dự án nhận hiện vật');
+  const photo = 'data:image/jpeg;base64,' + Buffer.from(jpg).toString('base64');
+  const post = b => fetch(B + '/api/donate-items', { method: 'POST', headers: { Origin: B, 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json());
+  const base = { campaign: camp.id, donorType: 'ca-nhan', name: 'Người Gửi Sách', phone: '0911222333', address: '1 Lê Duẩn, Pleiku, Gia Lai', items: [{ name: 'Sách', unit: 'cuốn', qty: 30 }], office: 'gia-lai', shipMethod: 'post' };
+  assert.match((await post({ ...base })).error || '', /phí vận chuyển/, 'bắt buộc xác nhận trả trước phí vận chuyển');
+  assert.match((await post({ ...base, prepaid: true })).error || '', /mã bưu gửi/, 'gửi ngay thì phải khai bưu gửi');
+  assert.match((await post({ ...base, prepaid: true, office: 'ho-chi-minh' })).error || '', /văn phòng/, 'chỉ nhận tại văn phòng trong cài đặt');
+  const reg = await post({ ...base, prepaid: true, carrier: 'Viettel Post', tracking: 'vtp1', shipDate: '2026-01-02', photos: [photo] });
+  assert.ok(reg.token && /^HV\d+$/.test(reg.code), 'đăng ký hiện vật trả mã HV');
+  const later = await post({ ...base, prepaid: true, later: true });
+  assert.ok(later.needShipping, 'chọn gửi sau thì được hẹn bổ sung bưu gửi');
+  assert.ok((await post({ action: 'shipping', token: later.token, carrier: 'GHN', tracking: 'ghn1', shipDate: '2026-01-03', photos: [photo] })).ok, 'bổ sung bưu gửi bằng mã bí mật');
+  const list = await (await fetch(B + '/api/admin/transactions?view=donations&status=pending&kind=items', { headers: { Cookie: cookie } })).json();
+  const row = list.items.find(x => x.memo === reg.code);
+  assert.equal(row.tracking, 'VTP1');
+  const key = JSON.parse(row.photos)[0];
+  assert.equal((await fetch(B + '/media/' + key)).status, 404, 'ảnh bưu gửi không công khai');
+  assert.equal((await fetch(B + '/media/' + key, { headers: { Cookie: cookie } })).status, 200, 'admin xem được ảnh bưu gửi');
+  const rc = await (await fetch(B + '/api/admin/transactions', { method: 'POST', headers: H, body: JSON.stringify({ action: 'receiveItems', donation: row.id, items: [{ name: 'Sách', unit: 'cuốn', qty: 28 }] }) })).json();
+  assert.ok(rc.code, 'nhận hiện vật cấp giấy');
+  const found = (await (await fetch(B + '/api/lookup?q=0911222333')).json()).results.find(r => r.code === rc.code);
+  assert.equal(found.type, 'Giấy xác nhận ủng hộ hiện vật');
+  assert.match(found.amountText || JSON.stringify(found), /28 cuốn Sách/);
+}
 // Chưa gắn Workers AI thì API AI tự tắt, trang chuyển sang cho người dùng tự nhập mã.
 const tinyJpg = 'data:image/jpeg;base64,' + Buffer.from(jpg).toString('base64');
 const aiOff = await (await fetch(B + '/api/ai-read', { method: 'POST', headers: { Origin: B, 'Content-Type': 'application/json' }, body: JSON.stringify({ image: tinyJpg }) })).json();

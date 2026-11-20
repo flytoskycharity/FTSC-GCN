@@ -16,6 +16,12 @@ export async function donationTargets(env) {
   return (results || []).filter(isOpen);
 }
 
+// Dự án đang mở nhận quyên góp hiện vật (Quỹ chung cũng được nếu admin bật).
+export async function itemTargets(env) {
+  const { results } = await env.DB.prepare("SELECT * FROM campaigns WHERE status='open' AND items_accept=1 ORDER BY (slug=?) DESC, sort DESC, id DESC").bind(FUND_SLUG).all();
+  return (results || []).filter(isOpen);
+}
+
 export async function campaignBySlug(env, slug) {
   const c = await env.DB.prepare("SELECT * FROM campaigns WHERE slug=? AND status IN ('open','closed')").bind(String(slug).toLowerCase()).first();
   return c ? { ...c, raised: await raisedOf(env, c) } : null;

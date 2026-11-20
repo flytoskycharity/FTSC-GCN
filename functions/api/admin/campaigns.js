@@ -48,12 +48,17 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     clip(r.cert_prefix, 10).toUpperCase().replace(/[^A-Z0-9]/g, ''), r.accept_donations === false || r.accept_donations === 0 ? 0 : 1, Number(r.sort) || 0, clip(r.benefits, 3000),
     money(r.unit_price), clip(r.unit_name, 30), r.unit_strict === true || r.unit_strict === 1 ? 1 : 0];
   if (v[15] && !v[16]) return json({ error: 'Nhập tên đơn vị quy đổi (VD: cây, cuốn sách).' }, 400);
+  // Quyên góp hiện vật: bật/tắt, danh mục hiện vật (Tên | đơn vị | mục tiêu), yêu cầu về hiện vật.
+  const items = [r.items_accept === true || r.items_accept === 1 ? 1 : 0, clip(r.item_types, 3000), clip(r.item_note, 2000)];
+  const saveItems = cid => env.DB.prepare('UPDATE campaigns SET items_accept=?, item_types=?, item_note=? WHERE id=?').bind(...items, cid).run();
   if (id) {
     await env.DB.prepare(`UPDATE campaigns SET slug=?,title=?,kind=?,status=?,start_at=?,end_at=?,memo_prefix=?,goal=?,raised_offset=?,summary=?,description=?,cover=?,cert_prefix=?,accept_donations=?,sort=?,benefits=?,unit_price=?,unit_name=?,unit_strict=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`).bind(...v, id).run();
+    await saveItems(id);
     await log(env, me, 'sửa dự án ' + title);
     return json({ ok: true, id });
   }
   const res = await env.DB.prepare(`INSERT INTO campaigns(slug,title,kind,status,start_at,end_at,memo_prefix,goal,raised_offset,summary,description,cover,cert_prefix,accept_donations,sort,benefits,unit_price,unit_name,unit_strict) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(...v).run();
+  await saveItems(res.meta.last_row_id);
   await log(env, me, 'tạo dự án ' + title);
   return json({ ok: true, id: res.meta.last_row_id });
 });

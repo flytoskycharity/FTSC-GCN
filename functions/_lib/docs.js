@@ -2,6 +2,8 @@
 export const DOC_KINDS = { 'giay-khen': 'Giấy khen', 'giay-chung-nhan': 'Giấy chứng nhận', khac: 'Giấy tờ khác' };
 export const DOC_TYPES = { scan: 'Bản scan có chữ ký tay', digital: 'PDF có chữ ký số' };
 export const docKindLabel = c => c.doc_kind?.startsWith('khac:') ? c.doc_kind.slice(5) : (DOC_KINDS[c.doc_kind] || 'Giấy chứng nhận');
+// Tên loại giấy hiển thị khi tra cứu, xác thực.
+export const certLabel = c => c?.doc_file ? docKindLabel(c) : c?.gift === 'items' ? 'Giấy xác nhận ủng hộ hiện vật' : Number(c?.amount) > 0 ? 'Giấy chứng nhận ủng hộ' : 'Giấy chứng nhận';
 export const docUrl = (c, dl) => `/api/cert-file?code=${encodeURIComponent(c.code)}&s=${c.sig}${dl ? '&dl=1' : ''}`;
 export const NEAC_URL = 'https://neac.gov.vn/vi';
 export const parseSig = c => { try { return c.doc_sig ? JSON.parse(c.doc_sig) : null; } catch { return null; } };

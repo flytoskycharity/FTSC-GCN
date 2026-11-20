@@ -5,6 +5,7 @@ import { json, readJson, clip, normPhone, vnToday } from '../../_lib/util.js';
 import { syncBank, applyTx, parsePasted, statementUrl, fetchStatement, payDonation } from '../../_lib/bank.js';
 import { issueCertificate, verifyPath, deleteCertificate } from '../../_lib/certs.js';
 import { campaignById } from '../../_lib/campaigns.js';
+import { cleanItems, itemsText } from '../../_lib/items.js';
 
 export const onRequest = adminApi('edit', async ({ request, env, me }) => {
   if (request.method === 'GET') {
@@ -12,6 +13,8 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     if (view === 'donations') {
       const q = clip(u.searchParams.get('q'), 80).trim(), where = [], args = [];
       if (status) { where.push('d.status=?'); args.push(status); }
+      const kind = u.searchParams.get('kind');
+      if (kind === 'items' || kind === 'money') { where.push('d.kind=?'); args.push(kind); }
       if (q) { where.push('(d.name LIKE ? OR d.phone LIKE ? OR d.memo LIKE ?)'); args.push(`%${q}%`, `%${normPhone(q) || q}%`, `%${q}%`); }
       const { results } = await env.DB.prepare(`SELECT d.*, c.title campaign, x.code cert_code, x.sig cert_sig FROM donations d LEFT JOIN campaigns c ON c.id=d.campaign_id LEFT JOIN certificates x ON x.id=d.cert_id
         ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${status === 'pending' ? "(d.reported_at<>'') DESC, " : ''}d.id DESC LIMIT 300`).bind(...args).all();
@@ -62,6 +65,7 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     const d = await env.DB.prepare('SELECT * FROM donations WHERE id=?').bind(Number(b.donation) || 0).first();
     if (!d) return json({ error: 'Không tìm thấy lượt ủng hộ.' }, 404);
     if (d.status === 'paid' || d.cert_id) return json({ error: 'Lượt này đã được duyệt.' }, 400);
+    if (d.kind === 'items') return json({ error: 'Đây là lượt quyên góp hiện vật: dùng nút “Đã nhận hiện vật”.' }, 400);
     const c = await campaignById(env, b.campaign || d.campaign_id);
     if (!c) return json({ error: 'Vui lòng chọn dự án.' }, 400);
     const amount = Math.round(Number(String(b.amount ?? d.amount).replace(/[^\d]/g, '')) || 0);
@@ -74,6 +78,27 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     const cert = await env.DB.prepare('SELECT code, sig FROM certificates WHERE id=?').bind(certId).first();
     await log(env, me, `duyệt ủng hộ #${d.id} ${name} ${amount}, cấp ${cert?.code}`);
     return json({ ok: true, code: cert?.code, url: cert ? verifyPath(cert) : '' });
+  }
+  if (b.action === 'receiveItems') {
+    // Đã nhận hiện vật: admin kiểm đếm, ghi số lượng thực nhận rồi cấp Giấy xác nhận ủng hộ hiện vật.
+    const d = await env.DB.prepare("SELECT * FROM donations WHERE id=? AND kind='items'").bind(Number(b.donation) || 0).first();
+    if (!d) return json({ error: 'Không tìm thấy lượt quyên góp hiện vật.' }, 404);
+    if (d.status === 'paid' || d.cert_id) return json({ error: 'Lượt này đã được nhận và cấp giấy.' }, 400);
+    const c = await campaignById(env, b.campaign || d.campaign_id);
+    if (!c) return json({ error: 'Vui lòng chọn dự án.' }, 400);
+    const items = cleanItems(b.items);
+    if (!items.length) return json({ error: 'Vui lòng nhập hiện vật thực nhận và số lượng.' }, 400);
+    const name = clip(b.name, 160).trim() || d.name;
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(b.date || '') ? b.date : vnToday();
+    const cert = await issueCertificate(env, settings, {
+      campaign: c, name, phone: d.phone, org: [...new Set([d.position, d.org].map(v => String(v || '').trim()).filter(Boolean))].join(', '),
+      amount: null, amount_text: clip(itemsText(items), 200), units: '', issued_date: iso, source: 'manual', donation_id: d.id, created_by: me.username,
+      gift: 'items', note: clip('Hiện vật: ' + itemsText(items) + (b.note ? ' · ' + b.note : ''), 500),
+    });
+    await env.DB.prepare("UPDATE donations SET status='paid', paid_at=?, name=?, campaign_id=?, received_items=?, received_note=?, cert_id=? WHERE id=?")
+      .bind(iso, name, c.id, JSON.stringify(items), clip(b.note, 500), cert.id, d.id).run();
+    await log(env, me, `nhận hiện vật #${d.id} ${name}: ${itemsText(items)}, cấp ${cert.code}`);
+    return json({ ok: true, code: cert.code, url: verifyPath(cert) });
   }
   if (b.action === 'deleteDonation') {
     // Xóa hẳn lượt ủng hộ (đăng ký nhầm, trùng, thử). Lượt đã cấp giấy thì xóa luôn giấy: chỉ Quản trị cao nhất.

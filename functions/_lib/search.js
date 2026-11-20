@@ -1,6 +1,6 @@
 import { normPhone, nameKey, maskPhone, normCode, validCode } from './util.js';
 import { verifyPath, historyOf } from './certs.js';
-import { docKindLabel, DOC_TYPES } from './docs.js';
+import { docKindLabel, DOC_TYPES, certLabel } from './docs.js';
 import { driveId } from './drive.js';
 
 // Tra cứu theo tên phải có ít nhất 2 từ (họ + tên) để không thể "vét" toàn bộ dữ liệu bằng vài chữ cái.
@@ -25,7 +25,7 @@ export async function searchLocal(env, settings, q) {
   const rows = [...seen.values()];
   const shared = await Promise.all(rows.map(c => sharedFile(env, c)));
   return rows.map((c, i) => ({
-    source: 'fts', sourceLabel: settings.site.owner, type: c.doc_file ? docKindLabel(c) : c.amount > 0 ? 'Giấy chứng nhận ủng hộ' : 'Giấy chứng nhận',
+    source: 'fts', sourceLabel: settings.site.owner, type: certLabel(c),
     code: c.code, name: c.name, org: c.org, phone: maskPhone(c.phone), project: c.campaign_name,
     amount: c.amount > 0 ? c.amount : null, amountText: c.amount > 0 ? '' : (c.amount_text || settings.cert.programText),
     date: c.issued_date, status: c.status === 'revoked' ? 'revoked' : 'valid', url: verifyPath(c),

@@ -82,6 +82,16 @@ export default {
     confirmLabel: 'Tôi yêu cầu Giấy xác nhận tài trợ theo quy định Bộ Tài chính',
     businessNote: 'Doanh nghiệp, tổ chức cần chuyển khoản từ tài khoản của đơn vị sang tài khoản của Công ty để được cấp Giấy xác nhận tài trợ.',
     thanks: 'Cảm ơn bạn đã đồng hành cùng Fly To Sky!',
+    // Quyên góp hiện vật: chỉ nhận tại các văn phòng dưới đây; người gửi trả trước phí vận chuyển.
+    itemsTitle: 'Quyên góp hiện vật',
+    itemsLead: 'Sách, máy tính, màn hình, đồ dùng học tập… Đăng ký hiện vật, gửi về văn phòng Fly To Sky và khai thông tin bưu gửi. Ban Tổ chức kiểm đếm khi nhận hàng và cấp Giấy xác nhận ủng hộ hiện vật.',
+    itemsNote: 'Phí vận chuyển do người gửi thanh toán trước. Fly To Sky không nhận hàng thu hộ (COD) và không nhận kiện hàng chưa trả cước. Vui lòng ghi mã quyên góp lên ngoài kiện hàng.',
+    itemsPaidNote: 'Cảm ơn bạn! Khi nhận và kiểm đếm hiện vật, Ban Tổ chức sẽ cấp Giấy xác nhận ủng hộ hiện vật. Bạn tra cứu bằng số điện thoại hoặc họ tên tại trang Tra cứu.',
+    itemOffices: [
+      { id: 'ha-noi', label: 'Văn phòng Hà Nội', address: 'Tầng 5, 124 ngõ 34 Hoàng Cầu, P. Ô Chợ Dừa, TP. Hà Nội', receiver: 'Fly To Sky – Phòng Tổ chức - Hành chính', phone: '0375 136 800' },
+      { id: 'gia-lai', label: 'Văn phòng Tổng (Gia Lai)', address: '145/14/4 Thống Nhất, P. Diên Hồng, tỉnh Gia Lai', receiver: 'Fly To Sky – Phòng Tổ chức - Hành chính', phone: '0375 136 800' },
+    ],
+    carriers: ['Bưu điện Việt Nam (VNPost)', 'Viettel Post', 'Giao Hàng Nhanh (GHN)', 'Giao Hàng Tiết Kiệm (GHTK)', 'J&T Express', 'SPX Express', 'Ninja Van', 'Best Express', 'Ahamove', 'Xe khách / nhà xe'],
   },
   cert: {
     prefix: 'FTS',

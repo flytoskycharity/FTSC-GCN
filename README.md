@@ -25,6 +25,13 @@ Admin → Giấy chứng nhận → Sửa → **Tệp giấy đã cấp**: chọ
 
 **Luồng nhập nhanh:** Admin → Giấy chứng nhận → **+ Nhập giấy đã ký**. Nhập họ tên, dự án, ngày cấp, loại giấy, chọn bản scan ký tay hoặc PDF ký số và tải tệp lên. Hệ thống kiểm tra tệp trước khi tạo hồ sơ, lưu bản gốc vào R2 riêng tư, cấp mã và liên kết xác thực trong một lần. Bản scan được ghi nhận là do tài khoản quản trị Fly To Sky tải lên, không tự chứng thực chữ ký tay. Ảnh JPG/PNG/WEBP tải lại đúng tệp sẽ được đối chiếu bằng SHA-256 tại mục Kiểm tra giấy ngay cả khi không có QR. Ảnh chụp mới hoặc scan lại của giấy không có QR (giấy khen, giấy ký tay cũ): thẻ Kiểm tra giấy mời người dùng nhập mã in trên giấy hoặc họ tên, rồi mở bản gốc đã lưu. Trình duyệt tự căn ảnh chụp theo bản gốc (tìm điểm đặc trưng + phép chiếu), so từng vùng sau khi cân bằng sáng, tô đỏ và phóng to chỗ khác, kết luận 3 mức: *Khớp bản gốc* / *Có chỗ khác* / *Chưa so chắc được*. Phần so ảnh chạy trên máy người dùng (`public/assets/align.js`), không tốn phí.
 
+### Quyên góp hiện vật (sách, máy tính, màn hình…)
+- Bật cho từng dự án: Admin → **Dự án** → Sửa → *Nhận quyên góp hiện vật*, khai danh mục (mỗi dòng `Tên | đơn vị | mục tiêu`) và yêu cầu về hiện vật.
+- Người gửi đăng ký tại `/ung-ho/hien-vat` (nút có sẵn trên trang dự án và trang Quyên góp): hiện vật + số lượng, thông tin người gửi (họ tên, SĐT, địa chỉ), hình thức gửi (bưu điện/đơn vị vận chuyển hoặc mang trực tiếp), **văn phòng nhận chỉ Hà Nội hoặc Gia Lai** (Cài đặt → Quyên góp hiện vật), cam kết **trả trước phí vận chuyển (không COD)**, rồi khai **đơn vị vận chuyển, mã bưu gửi, ngày gửi, ảnh bưu gửi** — ngay lúc đăng ký hoặc bổ sung sau bằng đường dẫn riêng `/ung-ho/hien-vat?gui=…`.
+- Mỗi lượt có mã `HV00001…` để ghi ngoài kiện hàng. Ảnh bưu gửi lưu ở R2 `parcels/`, chỉ admin xem được.
+- Admin → **Duyệt ủng hộ** → tab *Hiện vật chờ nhận*: mở kiện, kiểm đếm, bấm **Đã nhận hiện vật**, sửa số lượng thực nhận → hệ thống cấp **Giấy xác nhận ủng hộ hiện vật** (ghi rõ hiện vật, không ghi số tiền). Trang dự án tự cộng hiện vật đã nhận theo từng loại.
+- Mẫu giấy: Admin → Mẫu giấy → *Dùng cho: Chỉ ủng hộ hiện vật* để có phôi riêng (VD tiêu đề GIẤY XÁC NHẬN). Không có mẫu riêng thì dùng mẫu chung.
+
 ### AI hỗ trợ (miễn phí, tùy chọn)
 Dùng **Cloudflare Workers AI** (mô hình đọc ảnh Llama 4 Scout, gói miễn phí 10.000 neuron/ngày, dùng chung cả tài khoản Cloudflare):
 - `/api/ai-read`: đọc mã giấy và họ tên in trên ảnh chụp giấy không có QR, tự tìm và mở bản gốc để so.

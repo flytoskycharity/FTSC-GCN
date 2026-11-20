@@ -53,9 +53,11 @@ export function parseTemplate(row) {
 
 // Một dự án có nhiều mẫu: lấy mẫu đang bật có mức tiền tối thiểu cao nhất mà số tiền đạt tới;
 // nhiều mẫu cùng mức thì chọn ngẫu nhiên. Không có mẫu của dự án thì dùng mẫu chung, cuối cùng là mẫu mặc định.
-export async function pickTemplate(env, campaignId, amount) {
+// gift: 'money' | 'items' – mẫu dành riêng cho loại đóng góp được ưu tiên, mẫu "mọi loại" (gift_kind rỗng) dùng chung.
+export async function pickTemplate(env, campaignId, amount, gift = 'money') {
   for (const cid of [Number(campaignId) || 0, 0]) {
-    const { results } = await env.DB.prepare('SELECT * FROM templates WHERE campaign_id=? AND enabled=1').bind(cid).all();
+    const { results: all } = await env.DB.prepare('SELECT * FROM templates WHERE campaign_id=? AND enabled=1').bind(cid).all();
+    const own = (all || []).filter(t => t.gift_kind === gift), results = own.length ? own : (all || []).filter(t => !t.gift_kind);
     const list = (results || []).filter(t => !amount || !t.min_amount || amount >= t.min_amount);
     const fallback = (results || []).filter(t => !t.min_amount);
     const pool = list.length ? list : fallback;
@@ -90,7 +92,7 @@ export async function issueCertificate(env, settings, data) {
   }
   const amount = data.amount === null || data.amount === undefined || data.amount === '' ? null : Math.max(0, Math.round(Number(data.amount) || 0));
   const templateId = data.template_id !== undefined && data.template_id !== '' && data.template_id !== null && Number(data.template_id) >= 0 && data.template_id !== 'auto'
-    ? Number(data.template_id) : await pickTemplate(env, campaign?.id || 0, amount || 0);
+    ? Number(data.template_id) : await pickTemplate(env, campaign?.id || 0, amount || 0, data.gift === 'items' ? 'items' : 'money');
   const name = String(data.name || '').trim().slice(0, 160) || settings.donate.anonymousName;
   const sig = await certSig(env, code);
   const units = data.units !== undefined ? String(data.units || '').slice(0, 80) : unitsOf(amount, campaign);
@@ -100,6 +102,7 @@ export async function issueCertificate(env, settings, data) {
     normPhone(data.phone) || '', String(data.org || '').trim().slice(0, 200), amount, String(data.amount_text || '').slice(0, 200), issued,
     templateId, data.source || 'manual', String(data.file_url || '').slice(0, 500), Number(data.donation_id) || 0, String(data.note || '').slice(0, 500), data.created_by || '', units,
   ).run();
+  if (data.gift === 'items') await env.DB.prepare("UPDATE certificates SET gift='items' WHERE id=?").bind(r.meta.last_row_id).run();
   return await env.DB.prepare('SELECT * FROM certificates WHERE id=?').bind(r.meta.last_row_id).first();
 }
 
