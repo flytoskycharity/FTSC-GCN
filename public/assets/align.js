@@ -153,8 +153,18 @@
   }
 
   const LIMIT = .02;   // tỉ lệ điểm ảnh khác rõ trong một ô con để coi là ô sai
-  async function compareScan(photo, pw, ph, orig, ow, oh) {
-    const al = await align(orig, ow, oh, photo, pw, ph);
+  // Bản gốc có thể bị xoay (VD: PDF khổ dọc chứa giấy khen nằm ngang): không căn được thì thử xoay 90°, 270°, 180°.
+  function rotated(src, w, h, deg) {
+    const c = document.createElement('canvas'), q = deg % 180 !== 0; c.width = q ? h : w; c.height = q ? w : h;
+    const g = c.getContext('2d'); g.translate(c.width / 2, c.height / 2); g.rotate(deg * Math.PI / 180); g.drawImage(src, -w / 2, -h / 2, w, h); return c;
+  }
+  async function compareScan(photo, pw, ph, orig0, ow0, oh0) {
+    let orig = orig0, ow = ow0, oh = oh0, al = await align(orig, ow, oh, photo, pw, ph);
+    for (const deg of [90, 270, 180]) {
+      if (al) break;
+      const r = rotated(orig0, ow0, oh0, deg), a = await align(r, r.width, r.height, photo, pw, ph);
+      if (a) { al = a; orig = r; ow = r.width; oh = r.height; }
+    }
     if (!al) return { verdict: 'unsure', reason: 'Không căn được ảnh chụp với bản gốc (ảnh quá mờ, quá nghiêng, thiếu nhiều phần, hoặc không phải cùng một tờ giấy).' };
     await nextTick();
     const W = GW, Hh = Math.round(GW * oh / ow), wp = warp(photo, pw, ph, al.H, W, Hh);
@@ -197,7 +207,7 @@
     const aligned = med < LIMIT * .45 && al.inliers >= 30;
     const verdict = !aligned ? 'unsure' : real.length ? 'mismatch' : cov < .85 ? 'unsure' : 'match';
     return {
-      verdict, regions: real, blocks, coverage: cov, quality: med, inliers: al.inliers, W, H: Hh, warped: wp.canvas, orig: O,
+      verdict, regions: real, blocks, coverage: cov, origCanvas: orig, ow, oh, quality: med, inliers: al.inliers, W, H: Hh, warped: wp.canvas, orig: O,
       reason: !aligned ? 'Ảnh bị mờ, lóa hoặc nhăn nên chưa so được chắc chắn.' : verdict === 'unsure' ? 'Ảnh chụp thiếu một phần tờ giấy.' : '',
     };
   }

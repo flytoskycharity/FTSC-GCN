@@ -240,11 +240,11 @@
     catch (x) { console.error(x); res = { verdict: 'unsure', reason: 'Không so tự động được trên thiết bị này.' }; }
     const k = SV[res.verdict], reason = res.verdict === 'unsure' ? (res.reason || '') + ' Hãy chụp lại thẳng, đủ sáng, đủ cả tờ giấy, hoặc tự so hai ảnh dưới đây.' : k[3];
     const upImg = res.warped ? window.FTSAlign.marked(res.warped, res.W, res.H, res.regions) : slice(t.src, 0, 0, t.W, t.H, Math.min(1400, t.W));
-    const orImg = res.warped ? window.FTSAlign.marked(orig, res.W, res.H, res.regions) : canvasOf(od.w, od.h, g => g.drawImage(orig, 0, 0));
+    const orImg = res.warped ? window.FTSAlign.marked(res.origCanvas, res.W, res.H, res.regions) : canvasOf(od.w, od.h, g => g.drawImage(orig, 0, 0));
     box.innerHTML = `<div class="ver ver-${k[0]} ck-res"><div class="ver-top"><div class="ver-ic">${k[1]}</div><div><h1>${esc(k[2])}</h1><p>${esc(reason)}</p></div></div><p>Bản gốc: ${esc(r.type)} cấp cho <b>${esc(r.name)}</b>${r.project ? ' – ' + esc(r.project) : ''}, mã <code>${esc(r.code)}</code>.</p><div class="ck-imgs ck-side"><figure id="ckSideUp"><figcaption>Giấy bạn tải lên${res.warped ? ' (đã tự căn thẳng)' : ''}</figcaption></figure><figure id="ckSideOrig"><figcaption>Bản gốc Fly To Sky đã lưu</figcaption></figure></div>${res.regions?.length ? `<h2 class="ck-h">Chỗ khác (phóng to)</h2>${res.regions.slice(0, 4).map((g, i) => `<div class="ck-diff"><figure data-z="${i}" data-s="up"><figcaption>Giấy bạn tải lên</figcaption></figure><figure data-z="${i}" data-s="orig"><figcaption>Bản gốc</figcaption></figure></div>`).join('')}` : ''}<div id="ckAi"></div><p class="fine">Giấy không có mã QR được so bằng cách căn ảnh chụp theo bản gốc rồi so từng vùng. Ảnh lóa, nhòe hoặc giấy nhăn có thể cho kết quả “chưa so chắc được”.</p><p><a class="btn btn-primary btn-sm" href="${esc(r.url)}">Mở trang xác thực</a></p></div>`;
     $('#ckSideUp').prepend(upImg); orImg.style.width = '100%'; $('#ckSideOrig').prepend(orImg);
     if (res.regions?.length) {
-      const oc = canvasOf(res.W, res.H, g => g.drawImage(orig, 0, 0, res.W, res.H)), pad = Math.round(res.W / 22);
+      const oc = canvasOf(res.W, res.H, g => g.drawImage(res.origCanvas, 0, 0, res.W, res.H)), pad = Math.round(res.W / 22);
       box.querySelectorAll('[data-z]').forEach(fg => { const g = res.regions[+fg.dataset.z], R = { x: Math.max(0, g.x - pad), y: Math.max(0, g.y - pad) }; R.w = Math.min(res.W - R.x, g.w + 2 * pad); R.h = Math.min(res.H - R.y, g.h + 2 * pad); fg.prepend(crop(fg.dataset.s === 'up' ? res.warped : oc, R)); });
     }
     if (res.verdict === 'match') return;
@@ -253,8 +253,8 @@
     if (!aiOn) return;
     const aiBox = $('#ckAi');
     aiBox.innerHTML = '<div class="lk-wait"><span class="spin"></span>AI đang xem thêm hai tờ giấy…</div>';
-    const cw = 1000, top = res.warped || t.src, th = Math.round(cw * (res.warped ? res.H / res.W : t.H / t.W)), bh = Math.round(cw * od.h / od.w);
-    const comp = canvasOf(cw, th + bh + 20, g => { g.drawImage(top, 0, 0, cw, th); g.fillStyle = '#000'; g.fillRect(0, th, cw, 20); g.drawImage(orig, 0, th + 20, cw, bh); });
+    const cw = 1000, top = res.warped || t.src, th = Math.round(cw * (res.warped ? res.H / res.W : t.H / t.W)), ob = res.origCanvas || orig, bh = Math.round(cw * (res.origCanvas ? res.oh / res.ow : od.h / od.w));
+    const comp = canvasOf(cw, th + bh + 20, g => { g.drawImage(top, 0, 0, cw, th); g.fillStyle = '#000'; g.fillRect(0, th, cw, 20); g.drawImage(ob, 0, th + 20, cw, bh); });
     const a = await post('/api/ai-compare', { image: comp.toDataURL('image/jpeg', .85) });
     if (a.off) { aiBox.innerHTML = a.error ? `<p class="fine">${esc(a.error)}</p>` : ''; return; }
     aiBox.innerHTML = `<div class="ai-box"><h3>Nhận xét của AI <span class="muted">(chỉ để tham khảo)</span></h3>${a.differences?.length ? `<ul>${a.differences.map(d => `<li>${esc(d)}</li>`).join('')}</ul>` : `<p>${a.same ? 'AI không thấy khác biệt rõ về chữ, chữ ký, con dấu.' : 'AI chưa chỉ ra được khác biệt cụ thể.'}</p>`}<p class="fine">AI có thể nhầm. Hãy xem kỹ vùng tô đỏ trên ảnh.</p></div>`;
