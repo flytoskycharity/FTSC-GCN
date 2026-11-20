@@ -12,6 +12,8 @@ const j = async (p, b) => { const r = await call(p, b); const d = await r.json()
 
 for (const p of ['/', '/tra-cuu', '/tra-cuu?tab=kiem-tra', '/du-an', '/ung-ho', '/sao-ke', '/admin/']) assert.equal((await call(p)).status, 200, p);
 assert.equal((await call('/xac-thuc')).status, 302);
+{ const sm = await call('/sitemap.xml'); assert.equal(sm.status, 200, 'sitemap.xml'); assert.match(sm.headers.get('content-type'), /xml/); const x = await sm.text(); assert.match(x, /<urlset/); assert.match(x, /https:\/\/certificates\.flytoskycharity\.vn\/tra-cuu/); }
+assert.match(await (await call('/robots.txt')).text(), /Sitemap: https:\/\/certificates\.flytoskycharity\.vn\/sitemap\.xml/);
 assert.equal((await call('/tracuu')).status, 301);
 assert.equal((await call('/api/admin/stats')).status, 401, 'admin API phải yêu cầu đăng nhập');
 
