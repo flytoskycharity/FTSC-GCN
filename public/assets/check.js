@@ -2,6 +2,8 @@
 // Thuật toán so ảnh dùng chung với website Tủ sách Bồ Câu Trắng (Khuyendoc).
 // Giấy sai, bị thu hồi, không đọc được QR hoặc không xác nhận được đều được gửi kèm ảnh vào nhật ký để admin kiểm tra.
 (() => {
+  // Cùng số phiên bản với check.js để align.js không bị trình duyệt giữ bản cũ.
+  const VER = (document.currentScript?.src.match(/[?&]v=([\w.-]+)/) || [])[1] || String(Date.now());
   const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
   const out = $('#lkOut');
   if (!out || !$('#ck')) return;
@@ -236,7 +238,7 @@
     try { orig = await originalView(r.file); } catch { box.innerHTML = `<p class="err">Không mở được bản gốc.</p><p><a class="btn btn-primary btn-sm" href="${esc(r.url)}">Mở trang xác thực</a></p>`; return; }
     const od = dims(orig);
     let res;
-    try { if (!window.FTSAlign) await load('/assets/align.js'); res = await window.FTSAlign.compareScan(t.src, t.W, t.H, orig, od.w, od.h); }
+    try { if (!window.FTSAlign) await load('/assets/align.js?v=' + VER); res = await window.FTSAlign.compareScan(t.src, t.W, t.H, orig, od.w, od.h); }
     catch (x) { console.error(x); res = { verdict: 'unsure', reason: 'Không so tự động được trên thiết bị này.' }; }
     const k = SV[res.verdict], reason = res.verdict === 'unsure' ? (res.reason || '') + ' Hãy chụp lại thẳng, đủ sáng, đủ cả tờ giấy, hoặc tự so hai ảnh dưới đây.' : k[3];
     const upImg = res.warped ? window.FTSAlign.marked(res.warped, res.W, res.H, res.regions) : slice(t.src, 0, 0, t.W, t.H, Math.min(1400, t.W));
