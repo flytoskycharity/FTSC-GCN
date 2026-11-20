@@ -23,7 +23,14 @@ Chạy trên **Cloudflare Pages** (cùng kiến trúc với Tủ sách Bồ Câu
 ## Tệp giấy cấp ở nơi khác & chữ ký số
 Admin → Giấy chứng nhận → Sửa → **Tệp giấy đã cấp**: chọn loại (Giấy khen / Giấy chứng nhận / Khác) và hình thức.
 
-**Luồng nhập nhanh:** Admin → Giấy chứng nhận → **+ Nhập giấy đã ký**. Nhập họ tên, dự án, ngày cấp, loại giấy, chọn bản scan ký tay hoặc PDF ký số và tải tệp lên. Hệ thống kiểm tra tệp trước khi tạo hồ sơ, lưu bản gốc vào R2 riêng tư, cấp mã và liên kết xác thực trong một lần. Bản scan được ghi nhận là do tài khoản quản trị Fly To Sky tải lên, không tự chứng thực chữ ký tay. Ảnh JPG/PNG/WEBP tải lại đúng tệp sẽ được đối chiếu bằng SHA-256 tại mục Kiểm tra giấy ngay cả khi không có QR. Ảnh chụp mới hoặc scan lại của giấy không có QR (giấy khen, giấy ký tay cũ): thẻ Kiểm tra giấy mời người dùng nhập mã in trên giấy hoặc họ tên, rồi đặt bản gốc đã lưu cạnh ảnh vừa chụp để so bằng mắt. PDF vẫn kiểm tra chữ ký và có hướng dẫn kiểm tra lại tại NEAC như trước.
+**Luồng nhập nhanh:** Admin → Giấy chứng nhận → **+ Nhập giấy đã ký**. Nhập họ tên, dự án, ngày cấp, loại giấy, chọn bản scan ký tay hoặc PDF ký số và tải tệp lên. Hệ thống kiểm tra tệp trước khi tạo hồ sơ, lưu bản gốc vào R2 riêng tư, cấp mã và liên kết xác thực trong một lần. Bản scan được ghi nhận là do tài khoản quản trị Fly To Sky tải lên, không tự chứng thực chữ ký tay. Ảnh JPG/PNG/WEBP tải lại đúng tệp sẽ được đối chiếu bằng SHA-256 tại mục Kiểm tra giấy ngay cả khi không có QR. Ảnh chụp mới hoặc scan lại của giấy không có QR (giấy khen, giấy ký tay cũ): thẻ Kiểm tra giấy mời người dùng nhập mã in trên giấy hoặc họ tên, rồi mở bản gốc đã lưu. Trình duyệt tự căn ảnh chụp theo bản gốc (tìm điểm đặc trưng + phép chiếu), so từng vùng sau khi cân bằng sáng, tô đỏ và phóng to chỗ khác, kết luận 3 mức: *Khớp bản gốc* / *Có chỗ khác* / *Chưa so chắc được*. Phần so ảnh chạy trên máy người dùng (`public/assets/align.js`), không tốn phí.
+
+### AI hỗ trợ (miễn phí, tùy chọn)
+Dùng **Cloudflare Workers AI** (mô hình đọc ảnh Llama 4 Scout, gói miễn phí 10.000 neuron/ngày, dùng chung cả tài khoản Cloudflare):
+- `/api/ai-read`: đọc mã giấy và họ tên in trên ảnh chụp giấy không có QR, tự tìm và mở bản gốc để so.
+- `/api/ai-compare`: khi thuật toán thấy chỗ khác hoặc chưa chắc, AI ghi chú thêm khác biệt (chỉ để tham khảo, không quyết định thật/giả).
+
+Bật: project Pages → **Settings → Bindings → Add → Workers AI**, tên biến `AI` → deploy lại. Giới hạn: mỗi IP 20 lượt/giờ, toàn hệ thống `AI_DAILY_LIMIT` lượt/ngày (mặc định 120, đặt ở Variables nếu muốn đổi). Chưa gắn hoặc hết lượt thì tự chuyển sang cho người dùng nhập mã/họ tên. PDF vẫn kiểm tra chữ ký và có hướng dẫn kiểm tra lại tại NEAC như trước.
 
 Chỉ nhận 2 hình thức:
 - **Bản scan có chữ ký tay** (ảnh JPG/PNG/WEBP hoặc PDF).

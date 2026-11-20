@@ -169,22 +169,35 @@
     return match + `<div class="sigp ${r.ok && r.signatures.every(s => s.trustedRoot) && r.signerMatch !== false ? 'sig-ok' : 'sig-bad'}"><h3>Chữ ký số trên tệp PDF</h3><p class="sig-sum">${esc(r.summary)}</p>${r.signatures.map(s => s.error ? `<p class="err">${esc(s.error)}</p>` : `<dl class="profile"><div><dt>Người ký</dt><dd>${esc(s.signer.name)}${s.signer.uid ? '<br><span class="muted">' + esc(s.signer.uid) + '</span>' : ''}</dd></div><div><dt>Tổ chức cấp chứng thư</dt><dd>${esc(s.ca)}</dd></div><div><dt>Thời điểm ký</dt><dd>${esc(vt(s.signingTime))}</dd></div><div><dt>Chuỗi chứng thực</dt><dd>${esc((s.chain || []).join(' → '))}</dd></div></dl><ul class="sig-checks">${li(s.integrity, 'Tài liệu nguyên vẹn, không bị sửa sau khi ký', 'Nội dung đã bị thay đổi sau khi ký')}${li(s.signatureValid, 'Chữ ký khớp chứng thư số', 'Chữ ký không khớp chứng thư số')}${li(s.chainOk && s.trustedRoot, 'Chứng thư thuộc chuỗi tin cậy của Root CA quốc gia', 'Chứng thư không thuộc chuỗi tin cậy quốc gia đã biết')}${li(s.certValidAtSigning, 'Chứng thư còn hiệu lực khi ký', 'Chứng thư hết hạn hoặc chưa hiệu lực khi ký')}</ul>`).join('')}${r.signerMatch === false ? '<p class="err">Người ký không phải đơn vị cấp giấy của Hệ thống từ thiện Fly To Sky.</p>' : ''}<p class="fine">Kiểm tra lại tại Trung tâm Chứng thực điện tử quốc gia: mở neac.gov.vn → Dịch vụ trực tuyến → Kiểm tra văn bản ký số, tải tệp này lên.</p><a class="btn btn-ghost btn-sm" href="https://neac.gov.vn/vi" target="_blank" rel="noopener">Kiểm tra tại NEAC ↗</a></div>`;
   }
 
-  // ---------- Giấy không có QR: tìm bản gốc theo mã in trên giấy hoặc họ tên rồi đặt cạnh nhau ----------
+  // ---------- Giấy không có QR (giấy khen, giấy ký tay cũ) ----------
+  // 1) AI (nếu bật) đọc mã/họ tên in trên giấy và tìm bản gốc; không có AI thì người dùng tự nhập.
+  // 2) Thuật toán trong trình duyệt căn ảnh chụp theo bản gốc và tô đỏ chỗ khác. AI chỉ ghi chú thêm, không quyết định.
+  const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json()).catch(() => ({ off: true }));
+  let aiOn = true;
   async function originalView(file) {
     if (file.mime === 'application/pdf') {
       const P = await import('/assets/vendor/pdf.min.mjs');
       P.GlobalWorkerOptions.workerSrc = '/assets/vendor/pdf.worker.min.mjs';
-      const doc = await P.getDocument({ url: file.url }).promise, pg = await doc.getPage(1), v = pg.getViewport({ scale: 2 }), c = document.createElement('canvas');
+      const doc = await P.getDocument({ url: file.url }).promise, pg = await doc.getPage(1), v = pg.getViewport({ scale: 2.5 }), c = document.createElement('canvas');
       c.width = v.width; c.height = v.height;
       await pg.render({ canvas: c, canvasContext: c.getContext('2d'), viewport: v }).promise;
       return c;
     }
     return await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => no(new Error('Không tải được bản gốc')); im.src = file.url; });
   }
-  function findOriginal(t) {
+  const dims = e => ({ w: e.naturalWidth || e.width, h: e.naturalHeight || e.height });
+  const hitList = hits => `<div class="ck-hits">${hits.map((r, i) => `<div class="ck-hit"><div><b>${esc(r.name)}</b> · ${esc(r.type)}${r.status === 'revoked' ? ' · <span class="err">đã thu hồi</span>' : ''}<br><span class="muted">${esc([r.project, dmy(r.date), r.code && 'Mã ' + r.code, r.source !== 'fts' && r.sourceLabel].filter(Boolean).join(' · '))}</span></div>${r.file ? `<button type="button" class="btn btn-primary btn-sm" data-hit="${i}">So với ảnh của tôi</button>` : `<a class="btn btn-ghost btn-sm" href="${esc(r.url)}"${r.source !== 'fts' ? ' target="_blank" rel="noopener"' : ''}>Mở trang xác thực</a>`}</div>`).join('')}</div>`;
+  const SV = {
+    match: ['valid', '✓', 'Khớp với bản gốc đã lưu', 'Ảnh chụp trùng với bản gốc Fly To Sky đã lưu, không thấy chỗ nào bị sửa. Hãy kiểm tra thêm người cầm giấy có đúng là người có tên trên giấy.'],
+    mismatch: ['invalid', '!', 'Có chỗ khác với bản gốc', 'Vùng tô đỏ trên ảnh khác với bản gốc đã lưu: giấy có thể đã bị sửa hoặc làm giả. Nếu mã in trên tờ giấy khác mã của bản gốc dưới đây thì có thể đang so nhầm giấy: hãy nhập đúng mã ở ô trên.'],
+    unsure: ['unsigned', '?', 'Chưa so chắc được', ''],
+  };
+
+  async function findOriginal(t) {
     out.innerHTML = `<div class="ver ver-unsigned">${head('no_qr_find')}<form class="ck-find"><label class="sr" for="ckQ">Mã giấy hoặc họ tên người nhận</label><input id="ckQ" maxlength="80" required autocomplete="off" placeholder="Mã giấy in trên giấy, hoặc họ tên người nhận"><button class="btn btn-primary btn-sm" type="submit">Tìm bản gốc</button></form><p class="fine">Mã giấy thường in ở góc dưới, sau chữ “Mã GCN”. Tên cần đủ họ và tên.</p><div id="ckFound"></div></div>`;
     const box = $('#ckFound'), input = $('#ckQ');
-    let hits = [];
+    let hits = [], logged0 = false;
+    const noQrLog = () => { if (!logged0 && t.src) { logged0 = true; report(t, 'no_qr', { detail: 'Không có/không đọc được mã QR, chưa tìm được bản gốc. Tệp: ' + (t.name || '') }); } };
     out.querySelector('.ck-find').addEventListener('submit', async e => {
       e.preventDefault();
       const q = input.value.trim();
@@ -193,22 +206,54 @@
         const j = await (await fetch('/api/lookup?q=' + encodeURIComponent(q))).json();
         if (j.error) { box.innerHTML = `<p class="err">${esc(j.error)}</p>`; return; }
         hits = j.results || [];
-        if (!hits.length) { box.innerHTML = `<p class="err">Không tìm thấy giấy nào với “${esc(q)}”. Hãy kiểm tra lại mã hoặc họ tên in trên giấy. Nếu thông tin đúng mà vẫn không có, giấy có thể không do Fly To Sky cấp.</p>`; return; }
-        box.innerHTML = `<div class="ck-hits">${hits.map((r, i) => `<div class="ck-hit"><div><b>${esc(r.name)}</b> · ${esc(r.type)}${r.status === 'revoked' ? ' · <span class="err">đã thu hồi</span>' : ''}<br><span class="muted">${esc([r.project, dmy(r.date), r.code && 'Mã ' + r.code, r.source !== 'fts' && r.sourceLabel].filter(Boolean).join(' · '))}</span></div>${r.file ? `<button type="button" class="btn btn-primary btn-sm" data-hit="${i}">So với ảnh của tôi</button>` : `<a class="btn btn-ghost btn-sm" href="${esc(r.url)}"${r.source !== 'fts' ? ' target="_blank" rel="noopener"' : ''}>Mở trang xác thực</a>`}</div>`).join('')}</div>`;
+        if (!hits.length) { box.innerHTML = `<p class="err">Không tìm thấy giấy nào với “${esc(q)}”. Hãy kiểm tra lại mã hoặc họ tên in trên giấy. Nếu thông tin đúng mà vẫn không có, giấy có thể không do Fly To Sky cấp.</p>`; noQrLog(); return; }
+        box.innerHTML = hitList(hits);
       } catch { box.innerHTML = '<p class="err">Không tìm được lúc này. Vui lòng thử lại.</p>'; }
     });
-    box.addEventListener('click', async e => {
-      const b = e.target.closest('[data-hit]'); if (!b) return;
-      const r = hits[+b.dataset.hit];
-      box.innerHTML = '<div class="lk-wait"><span class="spin"></span>Đang mở bản gốc…</div>';
-      try {
-        const orig = await originalView(r.file);
-        box.innerHTML = `<div class="ck-imgs ck-side"><figure id="ckSideUp"><figcaption>Giấy bạn tải lên</figcaption></figure><figure id="ckSideOrig"><figcaption>Bản gốc Fly To Sky đã lưu – ${esc(r.type)} cấp cho ${esc(r.name)}, mã ${esc(r.code)}</figcaption></figure></div><p class="mt">Hãy so từng chi tiết: họ tên, nội dung, ngày cấp, mã giấy, chữ ký và con dấu. <b>Giống hoàn toàn</b> thì đây là giấy Fly To Sky đã cấp; <b>khác dù một chi tiết</b> thì giấy đã bị sửa hoặc làm giả.</p><p class="fine">Giấy không có mã QR chỉ đối chiếu được bằng mắt với bản gốc, hệ thống không tự kết luận.</p><p><a class="btn btn-primary btn-sm" href="${esc(r.url)}">Mở trang xác thực</a></p>`;
-        $('#ckSideUp').prepend(slice(t.src, 0, 0, t.W, t.H, Math.min(1400, t.W)));
-        $('#ckSideOrig').prepend(orig);
-      } catch { box.innerHTML = `<p class="err">Không mở được bản gốc.</p><p><a class="btn btn-primary btn-sm" href="${esc(r.url)}">Mở trang xác thực</a></p>`; }
-    });
-    input.focus({ preventScroll: true });
+    box.addEventListener('click', e => { const b = e.target.closest('[data-hit]'); if (b) compareWith(t, hits[+b.dataset.hit], box); });
+
+    // AI tự đọc mã trên giấy (miễn phí, có giới hạn lượt mỗi ngày). Không bật/không còn lượt thì để người dùng tự nhập.
+    if (!aiOn) { noQrLog(); input.focus({ preventScroll: true }); return; }
+    box.innerHTML = '<div class="lk-wait"><span class="spin"></span>AI đang đọc mã giấy và họ tên in trên ảnh…</div>';
+    const r = await post('/api/ai-read', { image: jpeg(t) });
+    if (r.off || r.error) { aiOn = false; box.innerHTML = r.error ? `<p class="fine">${esc(r.error)} Bạn hãy nhập mã hoặc họ tên ở ô trên.</p>` : ''; noQrLog(); input.focus({ preventScroll: true }); return; }
+    const read = [r.ai.code && 'mã <b>' + esc(r.ai.code) + '</b>', r.ai.name && 'họ tên <b>' + esc(r.ai.name) + '</b>'].filter(Boolean).join(', ');
+    if (r.ai.code || r.ai.name) input.value = r.ai.code || r.ai.name;
+    hits = r.results || [];
+    const note = `<p class="fine ai-note">AI đọc được trên giấy: ${read || 'không rõ mã và họ tên'}.${hits.length ? '' : ' Không có giấy nào khớp trên hệ thống. Nếu AI đọc sai, hãy sửa ở ô trên rồi bấm Tìm bản gốc.'}</p>`;
+    if (hits.length === 1 && hits[0].file) { box.innerHTML = note + '<div id="ckCmp"></div>'; return compareWith(t, hits[0], $('#ckCmp')); }
+    box.innerHTML = note + (hits.length ? hitList(hits) : '');
+    if (!hits.length) noQrLog();
+  }
+
+  async function compareWith(t, r, box) {
+    box.innerHTML = '<div class="lk-wait"><span class="spin"></span>Đang mở bản gốc và căn ảnh để so từng vùng…</div>';
+    let orig;
+    try { orig = await originalView(r.file); } catch { box.innerHTML = `<p class="err">Không mở được bản gốc.</p><p><a class="btn btn-primary btn-sm" href="${esc(r.url)}">Mở trang xác thực</a></p>`; return; }
+    const od = dims(orig);
+    let res;
+    try { if (!window.FTSAlign) await load('/assets/align.js'); res = await window.FTSAlign.compareScan(t.src, t.W, t.H, orig, od.w, od.h); }
+    catch (x) { console.error(x); res = { verdict: 'unsure', reason: 'Không so tự động được trên thiết bị này.' }; }
+    const k = SV[res.verdict], reason = res.verdict === 'unsure' ? (res.reason || '') + ' Hãy chụp lại thẳng, đủ sáng, đủ cả tờ giấy, hoặc tự so hai ảnh dưới đây.' : k[3];
+    const upImg = res.warped ? window.FTSAlign.marked(res.warped, res.W, res.H, res.regions) : slice(t.src, 0, 0, t.W, t.H, Math.min(1400, t.W));
+    const orImg = res.warped ? window.FTSAlign.marked(orig, res.W, res.H, res.regions) : orig;
+    box.innerHTML = `<div class="ver ver-${k[0]} ck-res"><div class="ver-top"><div class="ver-ic">${k[1]}</div><div><h1>${esc(k[2])}</h1><p>${esc(reason)}</p></div></div><p>Bản gốc: ${esc(r.type)} cấp cho <b>${esc(r.name)}</b>${r.project ? ' – ' + esc(r.project) : ''}, mã <code>${esc(r.code)}</code>.</p><div class="ck-imgs ck-side"><figure id="ckSideUp"><figcaption>Giấy bạn tải lên${res.warped ? ' (đã tự căn thẳng)' : ''}</figcaption></figure><figure id="ckSideOrig"><figcaption>Bản gốc Fly To Sky đã lưu</figcaption></figure></div>${res.regions?.length ? `<h2 class="ck-h">Chỗ khác (phóng to)</h2>${res.regions.slice(0, 4).map((g, i) => `<div class="ck-diff"><figure data-z="${i}" data-s="up"><figcaption>Giấy bạn tải lên</figcaption></figure><figure data-z="${i}" data-s="orig"><figcaption>Bản gốc</figcaption></figure></div>`).join('')}` : ''}<div id="ckAi"></div><p class="fine">Giấy không có mã QR được so bằng cách căn ảnh chụp theo bản gốc rồi so từng vùng. Ảnh lóa, nhòe hoặc giấy nhăn có thể cho kết quả “chưa so chắc được”.</p><p><a class="btn btn-primary btn-sm" href="${esc(r.url)}">Mở trang xác thực</a></p></div>`;
+    $('#ckSideUp').prepend(upImg); orImg.style.width = '100%'; $('#ckSideOrig').prepend(orImg);
+    if (res.regions?.length) {
+      const oc = canvasOf(res.W, res.H, g => g.drawImage(orig, 0, 0, res.W, res.H)), pad = Math.round(res.W / 22);
+      box.querySelectorAll('[data-z]').forEach(fg => { const g = res.regions[+fg.dataset.z], R = { x: Math.max(0, g.x - pad), y: Math.max(0, g.y - pad) }; R.w = Math.min(res.W - R.x, g.w + 2 * pad); R.h = Math.min(res.H - R.y, g.h + 2 * pad); fg.prepend(crop(fg.dataset.s === 'up' ? res.warped : oc, R)); });
+    }
+    if (res.verdict === 'match') return;
+    report(t, res.verdict, { code: r.code, detail: (res.verdict === 'mismatch' ? `Giấy không có QR: ảnh chụp khác bản gốc ở ${res.regions.length} vùng` : 'Giấy không có QR: chưa so chắc được. ' + (res.reason || '')) });
+    // AI nhận xét thêm (tham khảo) cho trường hợp có chỗ khác hoặc chưa chắc.
+    if (!aiOn) return;
+    const aiBox = $('#ckAi');
+    aiBox.innerHTML = '<div class="lk-wait"><span class="spin"></span>AI đang xem thêm hai tờ giấy…</div>';
+    const cw = 1000, top = res.warped || t.src, th = Math.round(cw * (res.warped ? res.H / res.W : t.H / t.W)), bh = Math.round(cw * od.h / od.w);
+    const comp = canvasOf(cw, th + bh + 20, g => { g.drawImage(top, 0, 0, cw, th); g.fillStyle = '#000'; g.fillRect(0, th, cw, 20); g.drawImage(orig, 0, th + 20, cw, bh); });
+    const a = await post('/api/ai-compare', { image: comp.toDataURL('image/jpeg', .85) });
+    if (a.off) { aiBox.innerHTML = a.error ? `<p class="fine">${esc(a.error)}</p>` : ''; return; }
+    aiBox.innerHTML = `<div class="ai-box"><h3>Nhận xét của AI <span class="muted">(chỉ để tham khảo)</span></h3>${a.differences?.length ? `<ul>${a.differences.map(d => `<li>${esc(d)}</li>`).join('')}</ul>` : `<p>${a.same ? 'AI không thấy khác biệt rõ về chữ, chữ ký, con dấu.' : 'AI chưa chỉ ra được khác biệt cụ thể.'}</p>`}<p class="fine">AI có thể nhầm. Hãy xem kỹ vùng tô đỏ trên ảnh.</p></div>`;
   }
 
   async function check(f) {
@@ -229,8 +274,8 @@
         if (scanMatch?.match) { out.innerHTML = pdfPanel(scanMatch); return; }
         const r = await pdfReq;
         if (r && (r.signatures?.length || r.match)) { out.innerHTML = pdfPanel(r); return; }
+        t.name = f.name;
         findOriginal(t);
-        if (t.src) report(t, 'no_qr', { detail: 'Không đọc được mã QR. Tệp: ' + f.name });
         return;
       }
       const j = await (await fetch('/api/verify?qr=' + encodeURIComponent(t.data))).json();

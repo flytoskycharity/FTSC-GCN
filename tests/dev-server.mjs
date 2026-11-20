@@ -19,6 +19,8 @@ const r2 = new Map();
 const env = {
   ADMIN_PASSWORD: 'test-pass', ADMIN_SESSION_SECRET: 'test-secret', FEDERATION_KEY: process.env.FEDERATION_KEY || 'fed-test', SYNC_KEY: 'sync-test', FEDERATION_ALLOW_HTTP: process.env.FEDERATION_ALLOW_HTTP || '',
   DB: { prepare: s => stmt(s), batch: async l => { db.exec('BEGIN'); try { for (const q of l) await q.run(); db.exec('COMMIT'); } catch (e) { db.exec('ROLLBACK'); throw e; } } },
+  // Giả lập Workers AI khi chạy thử: AI_MOCK='{"code":"...","name":"..."}' (bỏ trống = coi như chưa gắn AI).
+  ...(process.env.AI_MOCK ? { AI: { run: async (model, input) => ({ response: /NỬA TRÊN/.test(input.messages[0].content[0].text) ? '{"same": false, "differences": ["Thử: họ tên khác"]}' : process.env.AI_MOCK }) } } : {}),
   MEDIA: {
     put: async (k, b, o) => r2.set(k, { b: Buffer.from(b instanceof ArrayBuffer ? new Uint8Array(b) : b), o }),
     get: async k => { const f = r2.get(k); return f ? { body: f.b, writeHttpMetadata: h => h.set('Content-Type', f.o.httpMetadata.contentType) } : null; },

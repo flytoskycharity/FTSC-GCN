@@ -71,6 +71,11 @@ assert.equal(scanCheck.match?.code, signedCert.code, 'đối chiếu file scan �
 const editedJpg = new Uint8Array(jpg); editedJpg[5] ^= 1;
 const editedRes = await fetch(B + '/api/verify-file', { method: 'POST', headers: { Origin: B, 'Content-Type': 'image/jpeg' }, body: editedJpg });
 assert.equal((await editedRes.json()).match, null, 'không xác thực ảnh đã thay đổi');
+// Chưa gắn Workers AI thì API AI tự tắt, trang chuyển sang cho người dùng tự nhập mã.
+const tinyJpg = 'data:image/jpeg;base64,' + Buffer.from(jpg).toString('base64');
+const aiOff = await (await fetch(B + '/api/ai-read', { method: 'POST', headers: { Origin: B, 'Content-Type': 'application/json' }, body: JSON.stringify({ image: tinyJpg }) })).json();
+assert.ok(process.env.AI_MOCK || aiOff.off === true, 'không có AI thì /api/ai-read báo tắt');
+assert.equal((await fetch(B + '/api/ai-read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 403, 'AI chỉ nhận yêu cầu từ chính trang');
 // Ảnh chụp lại giấy không có QR: tìm theo tên phải trả về tệp bản gốc để đặt cạnh ảnh người dùng chụp.
 const byName = await (await fetch(B + '/api/lookup?q=' + encodeURIComponent('Tình Nguyện Viên Ký Tay'))).json();
 const hit = byName.results.find(r => r.code === signedCert.code);
