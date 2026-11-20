@@ -41,8 +41,7 @@ NEAC (neac.gov.vn) không có giao diện kết nối công khai, nên hệ th�
 
 ## Triển khai lần đầu trên Cloudflare
 1. **Workers & Pages → Create → Pages → Connect to Git** → chọn `flytoskycharity/FTSC-GCN`.
-   - Production branch: `main` (hoặc giữ `cloudflare` nếu môi trường đang chạy nhánh này) · Framework preset: *None* · Build command: *(để trống)* · Build output directory: `public`.
-   - Từ ngày 17/11/2026, `main` và `cloudflare` cùng chứa bản Cloudflare Pages. Nếu dự án Pages hiện đang triển khai từ `cloudflare`, có thể giữ nguyên nhánh Production để không gián đoạn. Khi chủ động chuyển Production branch sang `main`, kiểm tra lại thiết lập build `public`, D1/R2 bindings và secrets trước khi deploy.
+   - Production branch: `main` (nhánh duy nhất; nhánh `cloudflare` cũ đã bỏ từ 20/11/2026) · Framework preset: *None* · Build command: *(để trống)* · Build output directory: `public`.
 2. **Storage & Databases → D1 → Create**: tên `fts-certificates`. Bảng tự tạo ở lần chạy đầu.
 3. **R2 → Create bucket**: tên `fts-certificates-media`.
 4. Vào project Pages → **Settings → Bindings**:
