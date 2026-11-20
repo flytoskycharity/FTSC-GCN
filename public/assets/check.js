@@ -154,6 +154,7 @@
     revoked: ['revoked', '!', 'Giấy chứng nhận đã bị thu hồi', 'Giấy này không còn hiệu lực.'],
     foreign: ['invalid', '!', 'Mã QR không thuộc Fly To Sky', ''],
     no_qr: ['invalid', '?', 'Không đọc được mã QR', 'Vui lòng chụp thẳng, đủ sáng, đủ cả tờ giấy và rõ góc có mã QR, hoặc dùng tệp PDF. Bạn cũng có thể nhập mã giấy ở ô bên trên.'],
+    no_qr_find: ['unsigned', '?', 'Giấy không có mã QR hoặc chưa đọc được mã', 'Giấy khen, giấy ký tay cấp trước đây thường không có mã QR nên hệ thống chưa tự nhận ra. Nhập mã giấy in trên tờ giấy hoặc họ tên người nhận để mở bản gốc Fly To Sky đã lưu và đặt cạnh ảnh của bạn. Nếu giấy có mã QR, hãy chụp thẳng, đủ sáng, rõ góc có mã QR.'],
   };
   const head = (k, extra = '') => `<div class="ver-top"><div class="ver-ic">${V[k][1]}</div><div><h1>${esc(V[k][2])}</h1><p>${esc(extra || V[k][3])}</p></div></div>`;
   const tick = ok => `<b class="${ok ? 'r-ok' : 'r-bad'}">${ok ? '✓' : '✗'}</b>`;
@@ -166,6 +167,48 @@
     if (!r.signatures?.length) return match;
     const li = (b, t, f2) => `<li class="${b ? 'ok' : 'bad'}"><i>${b ? '✓' : '✗'}</i>${esc(b ? t : f2)}</li>`;
     return match + `<div class="sigp ${r.ok && r.signatures.every(s => s.trustedRoot) && r.signerMatch !== false ? 'sig-ok' : 'sig-bad'}"><h3>Chữ ký số trên tệp PDF</h3><p class="sig-sum">${esc(r.summary)}</p>${r.signatures.map(s => s.error ? `<p class="err">${esc(s.error)}</p>` : `<dl class="profile"><div><dt>Người ký</dt><dd>${esc(s.signer.name)}${s.signer.uid ? '<br><span class="muted">' + esc(s.signer.uid) + '</span>' : ''}</dd></div><div><dt>Tổ chức cấp chứng thư</dt><dd>${esc(s.ca)}</dd></div><div><dt>Thời điểm ký</dt><dd>${esc(vt(s.signingTime))}</dd></div><div><dt>Chuỗi chứng thực</dt><dd>${esc((s.chain || []).join(' → '))}</dd></div></dl><ul class="sig-checks">${li(s.integrity, 'Tài liệu nguyên vẹn, không bị sửa sau khi ký', 'Nội dung đã bị thay đổi sau khi ký')}${li(s.signatureValid, 'Chữ ký khớp chứng thư số', 'Chữ ký không khớp chứng thư số')}${li(s.chainOk && s.trustedRoot, 'Chứng thư thuộc chuỗi tin cậy của Root CA quốc gia', 'Chứng thư không thuộc chuỗi tin cậy quốc gia đã biết')}${li(s.certValidAtSigning, 'Chứng thư còn hiệu lực khi ký', 'Chứng thư hết hạn hoặc chưa hiệu lực khi ký')}</ul>`).join('')}${r.signerMatch === false ? '<p class="err">Người ký không phải đơn vị cấp giấy của Hệ thống từ thiện Fly To Sky.</p>' : ''}<p class="fine">Kiểm tra lại tại Trung tâm Chứng thực điện tử quốc gia: mở neac.gov.vn → Dịch vụ trực tuyến → Kiểm tra văn bản ký số, tải tệp này lên.</p><a class="btn btn-ghost btn-sm" href="https://neac.gov.vn/vi" target="_blank" rel="noopener">Kiểm tra tại NEAC ↗</a></div>`;
+  }
+
+  // ---------- Giấy không có QR: tìm bản gốc theo mã in trên giấy hoặc họ tên rồi đặt cạnh nhau ----------
+  async function originalView(file) {
+    if (file.mime === 'application/pdf') {
+      const P = await import('/assets/vendor/pdf.min.mjs');
+      P.GlobalWorkerOptions.workerSrc = '/assets/vendor/pdf.worker.min.mjs';
+      const doc = await P.getDocument({ url: file.url }).promise, pg = await doc.getPage(1), v = pg.getViewport({ scale: 2 }), c = document.createElement('canvas');
+      c.width = v.width; c.height = v.height;
+      await pg.render({ canvas: c, canvasContext: c.getContext('2d'), viewport: v }).promise;
+      return c;
+    }
+    return await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => no(new Error('Không tải được bản gốc')); im.src = file.url; });
+  }
+  function findOriginal(t) {
+    out.innerHTML = `<div class="ver ver-unsigned">${head('no_qr_find')}<form class="ck-find"><label class="sr" for="ckQ">Mã giấy hoặc họ tên người nhận</label><input id="ckQ" maxlength="80" required autocomplete="off" placeholder="Mã giấy in trên giấy, hoặc họ tên người nhận"><button class="btn btn-primary btn-sm" type="submit">Tìm bản gốc</button></form><p class="fine">Mã giấy thường in ở góc dưới, sau chữ “Mã GCN”. Tên cần đủ họ và tên.</p><div id="ckFound"></div></div>`;
+    const box = $('#ckFound'), input = $('#ckQ');
+    let hits = [];
+    out.querySelector('.ck-find').addEventListener('submit', async e => {
+      e.preventDefault();
+      const q = input.value.trim();
+      box.innerHTML = '<div class="lk-wait"><span class="spin"></span>Đang tìm…</div>';
+      try {
+        const j = await (await fetch('/api/lookup?q=' + encodeURIComponent(q))).json();
+        if (j.error) { box.innerHTML = `<p class="err">${esc(j.error)}</p>`; return; }
+        hits = j.results || [];
+        if (!hits.length) { box.innerHTML = `<p class="err">Không tìm thấy giấy nào với “${esc(q)}”. Hãy kiểm tra lại mã hoặc họ tên in trên giấy. Nếu thông tin đúng mà vẫn không có, giấy có thể không do Fly To Sky cấp.</p>`; return; }
+        box.innerHTML = `<div class="ck-hits">${hits.map((r, i) => `<div class="ck-hit"><div><b>${esc(r.name)}</b> · ${esc(r.type)}${r.status === 'revoked' ? ' · <span class="err">đã thu hồi</span>' : ''}<br><span class="muted">${esc([r.project, dmy(r.date), r.code && 'Mã ' + r.code, r.source !== 'fts' && r.sourceLabel].filter(Boolean).join(' · '))}</span></div>${r.file ? `<button type="button" class="btn btn-primary btn-sm" data-hit="${i}">So với ảnh của tôi</button>` : `<a class="btn btn-ghost btn-sm" href="${esc(r.url)}"${r.source !== 'fts' ? ' target="_blank" rel="noopener"' : ''}>Mở trang xác thực</a>`}</div>`).join('')}</div>`;
+      } catch { box.innerHTML = '<p class="err">Không tìm được lúc này. Vui lòng thử lại.</p>'; }
+    });
+    box.addEventListener('click', async e => {
+      const b = e.target.closest('[data-hit]'); if (!b) return;
+      const r = hits[+b.dataset.hit];
+      box.innerHTML = '<div class="lk-wait"><span class="spin"></span>Đang mở bản gốc…</div>';
+      try {
+        const orig = await originalView(r.file);
+        box.innerHTML = `<div class="ck-imgs ck-side"><figure id="ckSideUp"><figcaption>Giấy bạn tải lên</figcaption></figure><figure id="ckSideOrig"><figcaption>Bản gốc Fly To Sky đã lưu – ${esc(r.type)} cấp cho ${esc(r.name)}, mã ${esc(r.code)}</figcaption></figure></div><p class="mt">Hãy so từng chi tiết: họ tên, nội dung, ngày cấp, mã giấy, chữ ký và con dấu. <b>Giống hoàn toàn</b> thì đây là giấy Fly To Sky đã cấp; <b>khác dù một chi tiết</b> thì giấy đã bị sửa hoặc làm giả.</p><p class="fine">Giấy không có mã QR chỉ đối chiếu được bằng mắt với bản gốc, hệ thống không tự kết luận.</p><p><a class="btn btn-primary btn-sm" href="${esc(r.url)}">Mở trang xác thực</a></p>`;
+        $('#ckSideUp').prepend(slice(t.src, 0, 0, t.W, t.H, Math.min(1400, t.W)));
+        $('#ckSideOrig').prepend(orig);
+      } catch { box.innerHTML = `<p class="err">Không mở được bản gốc.</p><p><a class="btn btn-primary btn-sm" href="${esc(r.url)}">Mở trang xác thực</a></p>`; }
+    });
+    input.focus({ preventScroll: true });
   }
 
   async function check(f) {
@@ -186,7 +229,7 @@
         if (scanMatch?.match) { out.innerHTML = pdfPanel(scanMatch); return; }
         const r = await pdfReq;
         if (r && (r.signatures?.length || r.match)) { out.innerHTML = pdfPanel(r); return; }
-        out.innerHTML = `<div class="ver ver-invalid">${head('no_qr')}</div>`;
+        findOriginal(t);
         if (t.src) report(t, 'no_qr', { detail: 'Không đọc được mã QR. Tệp: ' + f.name });
         return;
       }

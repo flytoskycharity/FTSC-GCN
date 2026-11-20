@@ -11,6 +11,6 @@ export async function onRequestGet({ request, env }) {
   if (q.length < 2) return json({ results: [] });
   const settings = await loadSettings(env);
   const origin = String(settings.site.url || new URL(request.url).origin).replace(/\/$/, '');
-  const results = (await searchLocal(env, settings, q)).map(r => ({ ...r, url: origin + r.url }));
+  const results = (await searchLocal(env, settings, q)).map(r => ({ ...r, url: origin + r.url, file: r.file ? { ...r.file, url: origin + r.file.url } : null }));
   return json({ source: 'fts', results });
 }

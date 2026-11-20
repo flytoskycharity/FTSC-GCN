@@ -26,6 +26,8 @@ export async function searchLocal(env, settings, q) {
     code: c.code, name: c.name, org: c.org, phone: maskPhone(c.phone), project: c.campaign_name,
     amount: c.amount > 0 ? c.amount : null, amountText: c.amount > 0 ? '' : (c.amount_text || settings.cert.programText),
     date: c.issued_date, status: c.status === 'revoked' ? 'revoked' : 'valid', url: verifyPath(c),
+    // Tệp giấy đã ký (scan/PDF) để thẻ Kiểm tra giấy đặt cạnh ảnh người dùng chụp khi giấy không có mã QR.
+    file: c.doc_file && c.status !== 'revoked' ? { mime: c.doc_mime, url: `/api/cert-file?code=${encodeURIComponent(c.code)}&s=${c.sig}` } : null,
     adjusted: historyOf(c).map(h => ({ at: h.at, changes: h.changes })),
     documents: [
       ...(c.file_url ? [{ label: 'Bản gốc', url: c.file_url }] : []),
