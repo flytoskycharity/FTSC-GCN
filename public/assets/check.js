@@ -58,7 +58,7 @@
       for (let i = 1; i <= Math.min(doc.numPages, 3); i++) {
         const pg = await doc.getPage(i), v = pg.getViewport({ scale: 3 }), c = document.createElement('canvas');
         c.width = v.width; c.height = v.height;
-        await pg.render({ canvas: c, canvasContext: c.getContext('2d'), viewport: v }).promise;
+        await pg.render({ canvas: c, canvasContext: c.getContext('2d'), viewport: v, intent: 'print' }).promise; // 'print': không chờ requestAnimationFrame, nên không treo khi thẻ bị ẩn
         first = first || c;
         const r = await fromImage(c, c.width, c.height);
         if (r) return { ...r, src: c, W: c.width, H: c.height };
@@ -184,7 +184,7 @@
       P.GlobalWorkerOptions.workerSrc = '/assets/vendor/pdf.worker.min.mjs';
       const doc = await P.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise, pg = await doc.getPage(1), v = pg.getViewport({ scale: 2.5 }), c = document.createElement('canvas');
       c.width = v.width; c.height = v.height;
-      await pg.render({ canvas: c, canvasContext: c.getContext('2d'), viewport: v }).promise;
+      await pg.render({ canvas: c, canvasContext: c.getContext('2d'), viewport: v, intent: 'print' }).promise; // 'print': không chờ requestAnimationFrame, nên không treo khi thẻ bị ẩn
       return c;
     }
     return await createImageBitmap(blob);
