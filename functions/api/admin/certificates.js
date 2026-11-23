@@ -42,9 +42,10 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
       try {
         if (!clip(r.name, 160)) throw new Error('thiếu họ tên');
         if (clip(r.issued_date, 40) && !toIsoDate(r.issued_date)) throw new Error(`ngày cấp "${clip(r.issued_date, 40)}" không đúng (ghi dạng ngày/tháng/năm, VD 06/11/2026)`);
+        if (r.gift === 'items' && !String(r.amount_text || '').trim()) throw new Error('thiếu nội dung hiện vật');
         const cert = await issueCertificate(env, settings, {
           campaign: c, campaign_name: r.campaign_name, name: r.name, phone: r.phone, org: r.org,
-          amount: amt.amount, amount_text: r.amount_text || amt.text, issued_date: r.issued_date || vnToday(),
+          address: r.address, gift: r.gift === 'items' ? 'items' : 'money', amount: r.gift === 'items' ? null : amt.amount, amount_text: r.amount_text || amt.text, issued_date: r.issued_date || vnToday(),
           template_id: r.template_id ?? b.template_id ?? 'auto', code: r.code, source: 'manual', units: unitsInput(r.units, c), file_url: r.file_url, note: r.note, created_by: me.username,
         });
         out.push({ id: cert.id, code: cert.code, url: verifyPath(cert) });
@@ -60,7 +61,7 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     const amt = r.amount === '' || r.amount === null || r.amount === undefined ? { amount: null, text: '' } : amountOf(r.amount);
     const next = {
       name: clip(r.name ?? cur.name, 160), org: clip(r.org ?? cur.org, 200), phone: r.phone !== undefined ? (normPhone(r.phone) || '') : cur.phone,
-      amount: amt.amount, amount_text: clip(r.amount_text ?? amt.text, 200), issued_date: toIsoDate(r.issued_date) || cur.issued_date,
+      address: clip(r.address ?? cur.address,250), amount: cur.gift === 'items' ? null : amt.amount, amount_text: clip(r.amount_text ?? cur.amount_text, cur.gift === 'items' ? 4000 : 200), issued_date: toIsoDate(r.issued_date) || cur.issued_date,
       campaign_id: c ? c.id : (r.campaign_id !== undefined ? 0 : cur.campaign_id), campaign_name: clip(r.campaign_name ?? (c ? c.title : cur.campaign_name), 200),
       template_id: r.template_id !== undefined && r.template_id !== '' ? Number(r.template_id) || 0 : cur.template_id,
       file_url: /^https:\/\//.test(String(r.file_url || '')) ? clip(r.file_url, 500) : (r.file_url === '' ? '' : cur.file_url),
@@ -75,8 +76,8 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     const changed = keys.some(k => String(old[k] ?? '') !== String(next[k] ?? ''));
     const hist = JSON.parse(cur.history || '[]');
     if (changed) hist.push({ at: vnToday(), by: me.username, old, reason: clip(b.reason, 300) });
-    await env.DB.prepare(`UPDATE certificates SET name=?,name_key=?,org=?,phone=?,amount=?,amount_text=?,units=?,issued_date=?,campaign_id=?,campaign_name=?,template_id=?,file_url=?,note=?,history=?,img_ok=0,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-      .bind(next.name, nameKey(next.name), next.org, next.phone, next.amount, next.amount_text, next.units, next.issued_date, next.campaign_id, next.campaign_name, next.template_id, next.file_url, next.note, JSON.stringify(hist), id).run();
+    await env.DB.prepare(`UPDATE certificates SET name=?,name_key=?,org=?,address=?,phone=?,amount=?,amount_text=?,units=?,issued_date=?,campaign_id=?,campaign_name=?,template_id=?,file_url=?,note=?,history=?,img_ok=0,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+      .bind(next.name, nameKey(next.name), next.org, next.address, next.phone, next.amount, next.amount_text, next.units, next.issued_date, next.campaign_id, next.campaign_name, next.template_id, next.file_url, next.note, JSON.stringify(hist), id).run();
     await log(env, me, 'sửa giấy ' + cur.code);
     return json({ ok: true });
   }

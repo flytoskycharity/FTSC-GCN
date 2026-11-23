@@ -24,7 +24,7 @@ export const onRequest = adminApi('edit', async ({ request, env }) => {
         id: c.id, code: c.code, ver: c.updated_at || '',
         tpl: { background: tpl.background, width: tpl.width, height: tpl.height, fields: (tpl.fields || []).filter(f => f.visible !== false) },
         values: certValues(settings, c),
-        images: { qr: 'data:image/svg+xml;utf8,' + encodeURIComponent(qrSvg(`${origin}/xac-thuc/${codePath(c.code)}?s=${c.sig}`, { dark: '#000', level: 'M', border: 2 })), signature: settings.cert.signature || '', stamp: settings.cert.stamp || '' },
+        images: { qr: 'data:image/svg+xml;utf8,' + encodeURIComponent(qrSvg(`${origin}/xac-thuc/${codePath(c.code)}?s=${c.sig}`, { dark: '#000', level: 'M', border: 2 })), signature: tpl.sync_revision ? tpl.signature : settings.cert.signature || '', stamp: tpl.sync_revision ? tpl.stamp : settings.cert.stamp || '' },
         fonts: [settings.theme.fontHeading, settings.theme.fontBody], watermark: c.code,
       });
     }

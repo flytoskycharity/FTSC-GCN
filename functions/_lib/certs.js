@@ -4,7 +4,7 @@ import { unitsOf, normCode, validCode, codePath, hmac, randomInt, nameKey, normP
 import { DEFAULT_BG, LEGACY_BG } from './default-bg.js';
 export const FIELD_KEYS = {
   name: 'Họ tên', org: 'Chức vụ, đơn vị', amount: 'Số tiền / nội dung ghi nhận', units: 'Số lượng quy đổi (chỉ số, VD: 10)', project: 'Dự án, chương trình',
-  phone: 'Số điện thoại', code: 'Mã giấy chứng nhận', date: 'Ngày cấp', qr: 'Mã QR xác thực',
+  address: 'Địa chỉ', items: 'Danh sách hiện vật', phone: 'Số điện thoại', code: 'Mã giấy chứng nhận', date: 'Ngày cấp', qr: 'Mã QR xác thực',
   signature: 'Chữ ký', stamp: 'Con dấu', signer: 'Người ký', text: 'Chữ tự nhập',
 };
 export const IMAGE_KEYS = ['qr', 'signature', 'stamp'];
@@ -63,9 +63,10 @@ export const wantRule = (amount, campaign) => {
 
 // gift: 'money' | 'items' – mẫu dành riêng cho loại đóng góp được ưu tiên, mẫu "mọi loại" (gift_kind rỗng) dùng chung.
 export async function pickTemplate(env, campaignId, amount, gift = 'money') {
-  const camp = Number(campaignId) ? await env.DB.prepare('SELECT unit_price FROM campaigns WHERE id=?').bind(Number(campaignId)).first() : null;
+  const camp = Number(campaignId) ? await env.DB.prepare('SELECT unit_price,ext_ref FROM campaigns WHERE id=?').bind(Number(campaignId)).first() : null;
   const want = gift === 'money' ? wantRule(amount, camp) : '';
-  for (const cid of [Number(campaignId) || 0, 0]) {
+  const linked = camp?.ext_ref?.startsWith('khuyendoc:');
+  for (const cid of linked ? [-1] : [Number(campaignId) || 0, 0]) {
     const { results: all } = await env.DB.prepare('SELECT * FROM templates WHERE campaign_id=? AND enabled=1').bind(cid).all();
     const own = (all || []).filter(t => t.gift_kind === gift);
     let results = own.length ? own : (all || []).filter(t => !t.gift_kind);
@@ -81,6 +82,7 @@ export async function pickTemplate(env, campaignId, amount, gift = 'money') {
     }
     if (!cid) break;
   }
+  if (linked) throw new Error('Chưa có phôi Tủ sách phù hợp. Hãy kiểm tra loại phôi và đồng bộ lại.');
   return 0;
 }
 
@@ -106,6 +108,11 @@ export async function issueCertificate(env, settings, data) {
   const amount = data.amount === null || data.amount === undefined || data.amount === '' ? null : Math.max(0, Math.round(Number(data.amount) || 0));
   const templateId = data.template_id !== undefined && data.template_id !== '' && data.template_id !== null && Number(data.template_id) >= 0 && data.template_id !== 'auto'
     ? Number(data.template_id) : await pickTemplate(env, campaign?.id || 0, amount || 0, data.gift === 'items' ? 'items' : 'money');
+  if (campaign?.ext_ref?.startsWith('khuyendoc:') || templateId) {
+    const t = await env.DB.prepare('SELECT campaign_id,enabled,gift_kind FROM templates WHERE id=?').bind(templateId).first();
+    const linked = campaign?.ext_ref?.startsWith('khuyendoc:');
+    if (!t || !t.enabled || (linked ? t.campaign_id !== -1 : t.campaign_id && t.campaign_id !== campaign?.id) || (t.gift_kind && t.gift_kind !== (data.gift || 'money'))) throw new Error('Mẫu giấy không phù hợp với dự án hoặc hình thức ủng hộ.');
+  }
   const name = String(data.name || '').trim().slice(0, 160) || settings.donate.anonymousName;
   const sig = await certSig(env, code);
   let units = data.units !== undefined ? String(data.units || '').slice(0, 80) : unitsOf(amount, campaign);
@@ -114,13 +121,13 @@ export async function issueCertificate(env, settings, data) {
     const t = await env.DB.prepare('SELECT fields, amount_rule FROM templates WHERE id=?').bind(templateId).first();
     if (t && tplRule(t) === 'money') units = '';
   }
-  const r = await env.DB.prepare(`INSERT INTO certificates(code,sig,campaign_id,campaign_name,name,name_key,phone,org,amount,amount_text,issued_date,template_id,source,file_url,donation_id,note,created_by,units)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
+  const insert = env.DB.prepare(`INSERT INTO certificates(code,sig,campaign_id,campaign_name,name,name_key,phone,org,amount,amount_text,issued_date,template_id,source,file_url,donation_id,note,created_by,units,gift,address,receipt_id)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(
     code, sig, campaign?.id || 0, String(data.campaign_name || campaign?.title || '').slice(0, 200), name, nameKey(name),
-    normPhone(data.phone) || '', String(data.org || '').trim().slice(0, 200), amount, String(data.amount_text || '').slice(0, 200), issued,
-    templateId, data.source || 'manual', String(data.file_url || '').slice(0, 500), Number(data.donation_id) || 0, String(data.note || '').slice(0, 500), data.created_by || '', units,
-  ).run();
-  if (data.gift === 'items') await env.DB.prepare("UPDATE certificates SET gift='items' WHERE id=?").bind(r.meta.last_row_id).run();
+    normPhone(data.phone) || '', String(data.org || '').trim().slice(0, 200), amount, String(data.amount_text || '').slice(0, data.gift === 'items' ? 4000 : 200), issued,
+    templateId, data.source || 'manual', String(data.file_url || '').slice(0, 500), Number(data.donation_id) || 0, String(data.note || '').slice(0, 500), data.created_by || '', units, data.gift === 'items' ? 'items' : '', String(data.address || '').slice(0,250), data.finalizeReceipt ? data.donation_id : null,
+  );
+  const r = data.finalizeReceipt ? (await env.DB.batch([insert,data.finalizeReceipt(code)]))[0] : await insert.run();
   return await env.DB.prepare('SELECT * FROM certificates WHERE id=?').bind(r.meta.last_row_id).first();
 }
 
@@ -132,7 +139,7 @@ export function certValues(settings, c) {
   // Trên giấy chỉ in con số (VD: 10), chữ đơn vị đã có sẵn trên phôi; trang xác thực ghi đầy đủ "(10 cây)".
   const unitNum = String(c.units || '').match(/^[\d.,]+/)?.[0] || '';
   return {
-    name: up(c.name), org: c.org || '', amount: amountLine, project: c.campaign_name || '',
+    address: c.address || '', items: c.gift === 'items' ? c.amount_text : '', name: up(c.name), org: c.org || '', amount: amountLine, project: c.campaign_name || '',
     phone: settings.cert.maskPhone === false ? (c.phone || '') : maskPhone(c.phone || ''),
     code: c.code, date: fmtDate(c.issued_date), signer: settings.cert.signerName || '', units: unitNum,
     amountFull: amountLine + (c.units && amountLine !== (c.amount_text || settings.cert.programText) ? ` (${c.units})` : ''),
@@ -147,7 +154,7 @@ export const certImagePath = c => `/api/cert-image?code=${encodeURIComponent(c.c
 
 // Lịch sử điều chỉnh thông tin, dạng dễ đọc: [{at, by, reason, changes: [{label, from, to}]}].
 // Mỗi mục lưu thông tin CŨ; thông tin MỚI là bản cũ của lần sửa kế tiếp hoặc thông tin hiện tại.
-const HIST_LABELS = { name: 'Họ tên', org: 'Chức vụ, đơn vị', phone: 'Số điện thoại', amount: 'Số tiền', amount_text: 'Nội dung ghi nhận', units: 'Số quy đổi', issued_date: 'Ngày cấp', campaign_name: 'Dự án, chương trình' };
+const HIST_LABELS = { name: 'Họ tên', org: 'Chức vụ, đơn vị', address: 'Địa chỉ', items: 'Danh sách hiện vật', phone: 'Số điện thoại', amount: 'Số tiền', amount_text: 'Nội dung ghi nhận', units: 'Số quy đổi', issued_date: 'Ngày cấp', campaign_name: 'Dự án, chương trình' };
 export function historyOf(c) {
   let list = [];
   try { list = JSON.parse(c?.history || '[]'); } catch { list = []; }

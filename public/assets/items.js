@@ -18,7 +18,7 @@
     const t = types(), d = document.createElement('div');
     d.className = 'irow';
     const known = t.find(x => x.name === v.name);
-    d.innerHTML = `${t.length ? `<select class="i-type" aria-label="Loại hiện vật">${t.map(x => `<option value="${esc(x.name)}" data-unit="${esc(x.unit)}"${known && known.name === x.name ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}<option value="">Khác…</option></select>` : ''}<input class="i-name" placeholder="Tên hiện vật, VD: Sách giáo khoa lớp 5" maxlength="80" value="${esc(known ? '' : v.name || '')}"${t.length && known !== undefined ? ' hidden' : ''}><input class="i-qty" inputmode="numeric" placeholder="Số lượng" value="${esc(v.qty || '')}" aria-label="Số lượng"><input class="i-unit" placeholder="Đơn vị" maxlength="20" value="${esc(v.unit || known?.unit || t[0]?.unit || '')}" aria-label="Đơn vị"><input class="i-note" placeholder="Mô tả, tình trạng (VD: còn mới 90%)" maxlength="200" value="${esc(v.note || '')}"><button type="button" class="i-del" aria-label="Bỏ dòng này">×</button>`;
+    d.innerHTML = `${t.length ? `<select class="i-type" aria-label="Loại hiện vật">${t.map(x => `<option value="${esc(x.name)}" data-unit="${esc(x.unit)}"${known && known.name === x.name ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}<option value="">Khác…</option></select>` : ''}<input class="i-name" placeholder="Tên hiện vật, VD: Sách giáo khoa lớp 5" maxlength="80" value="${esc(known ? '' : v.name || '')}"${t.length && known !== undefined ? ' hidden' : ''}><input class="i-qty" inputmode="numeric" placeholder="Số lượng (nếu có)" value="${esc(v.qty || '')}" aria-label="Số lượng"><input class="i-unit" placeholder="Đơn vị" maxlength="20" value="${esc(v.unit || known?.unit || t[0]?.unit || '')}" aria-label="Đơn vị"><input class="i-note" placeholder="Mô tả, tình trạng (VD: còn mới 90%)" maxlength="200" value="${esc(v.note || '')}"><button type="button" class="i-del" aria-label="Bỏ dòng này">×</button>`;
     const sel = d.querySelector('.i-type'), name = d.querySelector('.i-name'), unit = d.querySelector('.i-unit');
     if (sel) {
       if (!known && v.name) sel.value = '';
@@ -85,7 +85,7 @@
   form.addEventListener('submit', async e => {
     e.preventDefault(); err.hidden = true;
     const items = readRows();
-    if (!items.length || items.some(i => !i.name || !i.qty)) return fail(err, 'Vui lòng nhập tên và số lượng cho từng hiện vật.');
+    if (!items.length || items.some(i => !i.name)) return fail(err, 'Vui lòng nhập tên cho từng hiện vật.');
     if (!E.name.value.trim()) return fail(err, 'Vui lòng nhập họ tên người gửi hoặc tên đơn vị.');
     if (!E.phone.value.trim()) return fail(err, 'Vui lòng nhập số điện thoại.');
     if (E.address.value.trim().length < 10) return fail(err, 'Vui lòng nhập địa chỉ người gửi đầy đủ.');
@@ -116,7 +116,7 @@
   fetch('/api/donate-items?token=' + encodeURIComponent(token)).then(r => r.json()).then(d => {
     if (d.error) { done.innerHTML = `<p class="err">${esc(d.error)}</p>`; return; }
     const ST = { pending: 'Chờ nhận hàng', paid: 'Đã nhận hàng', cancelled: 'Đã hủy' };
-    const items = (d.received.length ? d.received : d.items).map(i => `<li>${fmt(i.qty)} ${esc(i.unit)} ${esc(i.name)}${i.note ? ` <span class="fine">(${esc(i.note)})</span>` : ''}</li>`).join('');
+    const items = (d.received.length ? d.received : d.items).map(i => `<li>${i.qty ? fmt(i.qty) + ' ' + esc(i.unit) : ''} ${esc(i.name)}${i.note ? ` <span class="fine">(${esc(i.note)})</span>` : ''}</li>`).join('');
     const open = d.status === 'pending';
     done.innerHTML = `<h2>Quyên góp hiện vật <span class="hv-code">${esc(d.code)}</span></h2><p class="fine">${esc(d.project)} · ${esc(d.name)} · <b>${ST[d.status] || d.status}</b></p><ul>${items}</ul>${d.cert ? `<p><a class="btn btn-primary" href="${esc(d.cert.url)}">Xem Giấy xác nhận ${esc(d.cert.code)}</a></p>` : ''}${officeHtml(d.office)}${open ? `<form id="shipForm" class="mt"><h3>Thông tin bưu gửi</h3><div class="ship-slot"></div><button class="btn btn-accent btn-block" type="submit">Lưu thông tin bưu gửi</button><p class="err" hidden></p></form>` : ''}`;
     if (!open) return;

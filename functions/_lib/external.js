@@ -1,5 +1,6 @@
 // Dự án liên kết từ Tủ sách Bồ Câu Trắng (Khuyendoc): hiện trên cổng này với đầy đủ thông tin, dự toán, quyền lợi,
 // nhưng nhận ủng hộ và cấp GCN tại Khuyendoc (cú pháp TUSACH) để không cấp trùng giấy. GCN vẫn tra cứu được ở đây qua liên thông.
+import { syncTemplates } from './federated-templates.js';
 import { getState, setState } from './db.js';
 import { slugify } from './util.js';
 
@@ -72,7 +73,12 @@ export async function syncKhuyendoc(env, settings, { force } = {}) {
   // Dự án đã gỡ khỏi Khuyendoc: chuyển sang "Đã kết thúc" trên cổng này.
   const { results } = await env.DB.prepare("SELECT id, ext_ref FROM campaigns WHERE ext_ref LIKE 'khuyendoc:%' AND status='open'").all();
   for (const c of results || []) if (!seen.includes(c.ext_ref)) await env.DB.prepare("UPDATE campaigns SET status='closed' WHERE id=?").bind(c.id).run();
-  const out = { at: Date.now(), ok: true, added, updated };
+  await syncTemplates(env, base, d);
+  if (Array.isArray(d.templates)) {
+    // Khởi tạo một lần cho mỗi dự án; sau đó quản trị viên có thể tắt nhận.
+    await env.DB.prepare("UPDATE campaigns SET items_accept=1,items_initialized=1 WHERE ext_ref LIKE 'khuyendoc:%' AND items_initialized=0").run();
+  }
+  const out = { at: Date.now(), ok: true, added, updated, templates: d.templates?.length ?? null };
   await setState(env, 'khuyendoc_sync', out);
   return out;
 }

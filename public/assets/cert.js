@@ -32,7 +32,8 @@
         const im = imgs[f.key];
         if (!im) continue;
         const w = (f.w || 10) / 100 * W, h = im.naturalHeight && im.naturalWidth ? w * im.naturalHeight / im.naturalWidth : w;
-        ctx.drawImage(im, x, y, w, h);
+        const dx = f.sourceAnchor ? (f.align === 'center' ? w/2 : f.align === 'right' ? w : 0) : 0;
+        ctx.drawImage(im, x-dx, y-(f.sourceAnchor ? h/2 : 0), w, h);
         continue;
       }
       let text = f.key === 'text' ? (f.text || '') : (data.values?.[f.key] || '');
@@ -49,6 +50,29 @@
       const room = align === 'center' ? 2 * Math.min(x, W - x) - 2 * pad : align === 'right' ? x - pad : W - x - pad;
       const maxw = Math.max(W * 0.05, Math.min(room, f.maxw ? f.maxw / 100 * W : Infinity));
       ctx.font = font();
+      if (data.values?.items && (f.key === 'amount' || f.key === 'items')) {
+        const height = H * (f.maxh || 9) / 100;
+        let lines;
+        do {
+          ctx.font = font();
+          lines = [];
+          for (const paragraph of text.split(/\n/)) {
+            let line = '';
+            for (const word of paragraph.split(/\s+/)) {
+              const candidate = line ? line + ' ' + word : word;
+              if (line && ctx.measureText(candidate).width > maxw) { lines.push(line); line = word; }
+              else line = candidate;
+            }
+            if (line) lines.push(line);
+          }
+          if (lines.length * size * 1.15 <= height || size <= 2) break;
+          size *= .9;
+        } while (true);
+        const spacing = Math.min(size * 1.15, height / Math.max(1,lines.length));
+        ctx.fillStyle = f.color || '#14333c'; ctx.textAlign = align; ctx.textBaseline = 'middle';
+        lines.forEach((line,i)=>ctx.fillText(line,x,y+(i-(lines.length-1)/2)*spacing,maxw));
+        continue;
+      }
       const wNow = ctx.measureText(text).width;
       if (wNow > maxw) { size = Math.max(6, size * maxw / wNow); ctx.font = font(); }
       while (ctx.measureText(text).width > maxw && size > 6) { size *= 0.97; ctx.font = font(); }
@@ -67,7 +91,7 @@
     }
     // Vẽ lại QR sau cùng để hình chìm không làm khó quét.
     const qf = (t.fields || []).find(f => f.key === 'qr' && f.visible !== false);
-    if (data.watermark && qf && imgs.qr) { const w = (qf.w || 10) / 100 * W; ctx.fillStyle = '#fff'; ctx.fillRect(qf.x / 100 * W, qf.y / 100 * H, w, w); ctx.drawImage(imgs.qr, qf.x / 100 * W, qf.y / 100 * H, w, w); }
+    if (data.watermark && qf && imgs.qr) { const w = (qf.w || 10) / 100 * W; ctx.fillStyle = '#fff'; const x = qf.x / 100 * W - (qf.sourceAnchor ? (qf.align === 'center' ? w/2 : qf.align === 'right' ? w : 0) : 0), y = qf.y / 100 * H - (qf.sourceAnchor ? w/2 : 0); ctx.fillRect(x,y,w,w); ctx.drawImage(imgs.qr,x,y,w,w); }
     return canvas;
   }
 

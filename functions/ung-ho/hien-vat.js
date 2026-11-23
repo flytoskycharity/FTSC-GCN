@@ -8,5 +8,10 @@ export const onRequestGet = pageRoute('/ung-ho/hien-vat', async ({ env, x, reque
   let targets = env.DB ? await itemTargets(env) : [];
   // Bổ sung bưu gửi vẫn mở được dù dự án đã đóng nhận hiện vật.
   if (q.has('gui') && !targets.length && env.DB) targets = (await env.DB.prepare('SELECT * FROM campaigns WHERE items_accept=1 LIMIT 1').all()).results || [];
+  if (q.has('tu-sach')) {
+    const campaign = targets.find(t => t.ext_ref === 'khuyendoc:' + q.get('tu-sach'));
+    if (!campaign) return new Response('Dự án Tủ sách này hiện chưa mở nhận hiện vật.', {status:404,headers:{'Content-Type':'text/plain; charset=utf-8'}});
+    return renderItemsDonate(x, targets, campaign.id, false);
+  }
   return renderItemsDonate(x, targets, (targets.find(t => t.slug === slug) || targets[0])?.id, q.has('gui'));
 });
