@@ -10,7 +10,8 @@ export async function syncTemplates(env, base, source) {
     if (!path) return '';
     if (images.has(path)) return images.get(path);
     if (!/^\/(media\/uploads|brand|images)\/[\w/.-]+$/.test(path) || path.includes('..')) throw new Error('Đường dẫn ảnh phôi Tủ sách không hợp lệ.');
-    const r = await fetch(base + path, {redirect: 'error', headers: path.startsWith('/media/') ? {'x-fts-federation-key': env.FEDERATION_KEY} : {}});
+    const r = await fetch(base + path, {redirect: 'manual', headers: path.startsWith('/media/') ? {'x-fts-federation-key': env.FEDERATION_KEY} : {}});
+    if (r.status >= 300 && r.status < 400) throw new Error('Ảnh phôi Tủ sách trả về chuyển hướng (HTTP ' + r.status + '). Vui lòng dùng đường dẫn ảnh trực tiếp.');
     if (!r.ok) throw new Error('Không tải được ảnh phôi Tủ sách (' + r.status + ').');
     const bytes = await r.arrayBuffer();
     if (!bytes.byteLength || bytes.byteLength > 12e6) throw new Error('Kích thước ảnh phôi không hợp lệ.');
