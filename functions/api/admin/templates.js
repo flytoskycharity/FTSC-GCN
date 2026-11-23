@@ -29,6 +29,7 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
   }
   const b = await readJson(request) || {};
   const id = Number(b.id || b.record?.id) || 0;
+  if (id && (await env.DB.prepare('SELECT sync_revision FROM templates WHERE id=?').bind(id).first())?.sync_revision) return json({error:'Hãy sửa mẫu tại Tủ sách rồi đồng bộ lại.'},400);
   if (b.action === 'delete') {
     const used = await env.DB.prepare('SELECT COUNT(*) n FROM certificates WHERE template_id=?').bind(id).first();
     if (used.n) return json({ error: `Mẫu đang dùng cho ${used.n} giấy. Hãy tắt mẫu thay vì xóa để giấy đã cấp vẫn hiển thị đúng.` }, 400);

@@ -90,13 +90,13 @@ export const onRequest = adminApi('edit', async ({ request, env, me }) => {
     if (!items.length) return json({ error: 'Vui lòng nhập hiện vật thực nhận và số lượng.' }, 400);
     const name = clip(b.name, 160).trim() || d.name;
     const iso = /^\d{4}-\d{2}-\d{2}$/.test(b.date || '') ? b.date : vnToday();
+    const finalizeReceipt = code => env.DB.prepare("UPDATE donations SET status='paid',paid_at=?,name=?,campaign_id=?,received_items=?,received_note=?,cert_id=(SELECT id FROM certificates WHERE code=?) WHERE id=?")
+      .bind(iso,name,c.id,JSON.stringify(items),clip(b.note,500),code,d.id);
     const cert = await issueCertificate(env, settings, {
-      campaign: c, name, phone: d.phone, org: [...new Set([d.position, d.org].map(v => String(v || '').trim()).filter(Boolean))].join(', '),
-      amount: null, amount_text: clip(itemsText(items), 200), units: '', issued_date: iso, source: 'manual', donation_id: d.id, created_by: me.username,
+      finalizeReceipt, campaign: c, name, phone: d.phone, org: [...new Set([d.position, d.org].map(v => String(v || '').trim()).filter(Boolean))].join(', '),
+      address: d.address, template_id: b.template_id, amount: null, amount_text: itemsText(items), units: '', issued_date: iso, source: 'manual', donation_id: d.id, created_by: me.username,
       gift: 'items', note: clip('Hiện vật: ' + itemsText(items) + (b.note ? ' · ' + b.note : ''), 500),
     });
-    await env.DB.prepare("UPDATE donations SET status='paid', paid_at=?, name=?, campaign_id=?, received_items=?, received_note=?, cert_id=? WHERE id=?")
-      .bind(iso, name, c.id, JSON.stringify(items), clip(b.note, 500), cert.id, d.id).run();
     await log(env, me, `nhận hiện vật #${d.id} ${name}: ${itemsText(items)}, cấp ${cert.code}`);
     return json({ ok: true, code: cert.code, url: verifyPath(cert) });
   }

@@ -14,18 +14,19 @@ export function cleanItems(list) {
   return (Array.isArray(list) ? list : []).map(i => ({
     name: clip(String(i?.name ?? '').replace(/[<>]/g, ''), 80).trim(), unit: clip(String(i?.unit ?? '').replace(/[<>]/g, ''), 20).trim() || 'cái',
     qty: int(i?.qty), note: clip(String(i?.note ?? '').replace(/[<>]/g, ''), 200).trim(),
-  })).filter(i => i.name && i.qty > 0).slice(0, 20);
+  })).filter(i => i.name).slice(0, 20);
 }
 export const parseItems = s => { try { return cleanItems(JSON.parse(s || '[]')); } catch { return []; } };
 
 // "50 cuốn Sách thiếu nhi, 2 bộ Máy tính để bàn" – ghi trên Giấy xác nhận.
-export const itemsText = list => list.map(i => `${i.qty.toLocaleString('vi-VN')} ${i.unit} ${i.name}`).join(', ');
+export const itemsText = list => list.map(i => `${i.qty ? i.qty.toLocaleString('vi-VN') + ' ' + i.unit + ' ' : ''}${i.name}`).join(', ');
 
 // Tổng hiện vật đã nhận (theo kiểm đếm thực tế) của một dự án, gộp theo tên + đơn vị.
 export async function receivedTotals(env, campaignId) {
   const { results } = await env.DB.prepare("SELECT received_items FROM donations WHERE campaign_id=? AND kind='items' AND status='paid'").bind(campaignId).all();
   const m = new Map();
   for (const r of results || []) for (const i of parseItems(r.received_items)) {
+    if (!i.qty) continue;
     const k = (i.name + '|' + i.unit).toLowerCase(), cur = m.get(k);
     if (cur) cur.qty += i.qty; else m.set(k, { ...i, note: '' });
   }

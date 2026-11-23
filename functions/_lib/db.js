@@ -46,6 +46,9 @@ const COLUMNS = [
   ['donations', "tracking TEXT NOT NULL DEFAULT ''"], ['donations', "ship_date TEXT NOT NULL DEFAULT ''"], ['donations', "photos TEXT NOT NULL DEFAULT ''"],
   ['donations', "received_items TEXT NOT NULL DEFAULT ''"], ['donations', "received_note TEXT NOT NULL DEFAULT ''"],
   ['campaigns', "items_accept INTEGER NOT NULL DEFAULT 0"], ['campaigns', "item_types TEXT NOT NULL DEFAULT ''"], ['campaigns', "item_note TEXT NOT NULL DEFAULT ''"],
+  ['campaigns','items_initialized INTEGER NOT NULL DEFAULT 0'], ['certificates','receipt_id INTEGER'],
+  ['templates', 'sync_revision TEXT'], ['templates', "signature TEXT NOT NULL DEFAULT ''"], ['templates', "stamp TEXT NOT NULL DEFAULT ''"],
+  ['certificates', "address TEXT NOT NULL DEFAULT ''"],
   ['templates', "gift_kind TEXT NOT NULL DEFAULT ''"], ['templates', "amount_rule TEXT NOT NULL DEFAULT ''"], ['certificates', "gift TEXT NOT NULL DEFAULT ''"],
 ];
 export const FUND_SLUG = 'quy-chung';
@@ -55,6 +58,8 @@ export async function initializeDatabase(env) {
   if (ready) return env.DB;
   await env.DB.batch(TABLES.map(sql => env.DB.prepare(sql)));
   for (const [t, c] of COLUMNS) { try { await env.DB.prepare(`ALTER TABLE ${t} ADD COLUMN ${c}`).run(); } catch { /* đã có */ } }
+  await env.DB.prepare('CREATE UNIQUE INDEX IF NOT EXISTS templates_revision ON templates(sync_revision)').run();
+  await env.DB.prepare('CREATE UNIQUE INDEX IF NOT EXISTS cert_receipt ON certificates(receipt_id)').run();
   // Quỹ chung các dự án: một "dự án" đặc biệt để nhận ủng hộ không chỉ định; sửa được trong admin.
   await env.DB.prepare(`INSERT OR IGNORE INTO campaigns(slug,title,kind,status,memo_prefix,summary,sort,accept_donations) VALUES(?,?,?,?,?,?,?,1)`)
     .bind(FUND_SLUG, 'Quỹ chung các dự án Fly To Sky', 'money', 'open', 'DONGHANH', 'Ủng hộ không chỉ định dự án. Fly To Sky phân bổ cho các dự án, hoàn cảnh cần hỗ trợ nhất và công khai qua sao kê.', -1000).run();
