@@ -3,6 +3,7 @@ import { limited } from '../_lib/auth.js';
 import { json, normPhone } from '../_lib/util.js';
 import { searchLocal, nameQueryOk } from '../_lib/search.js';
 import { searchRemote } from '../_lib/federation.js';
+import {canonical} from '../_lib/workspace-registry.js';
 import { syncBank } from '../_lib/bank.js';
 
 export async function onRequestGet({ request, env, waitUntil }) {
@@ -19,6 +20,13 @@ export async function onRequestGet({ request, env, waitUntil }) {
   // Chỉ hỏi các hệ thống liên thông khi là SĐT, họ tên đầy đủ hoặc mã có chữ số – không chuyển chuỗi ngắn có thể bị dùng để vét dữ liệu.
   const remoteOk = !!normPhone(q) || nameQueryOk(q) || /\d/.test(q);
   const [local, remote] = await Promise.all([searchLocal(env, settings, q), remoteOk ? searchRemote(env, settings, q) : { results: [], status: [] }]);
+  if (!remote.results.some(row => row.source === 'workspace' && row.code.toLowerCase() === q.toLowerCase()) && /\d/.test(q)) {
+    const saved = await env.DB.prepare('SELECT token FROM workspace_registry WHERE code=? LIMIT 1').bind(q).first().catch(()=>null);
+    if (saved) {
+      try { remote.results.push(await canonical(env,saved.token)); }
+      catch { return json({error:'Workspace tạm thời chưa xác nhận được trạng thái giấy.'},503); }
+    }
+  }
   const results = [...local, ...remote.results].sort((a, b) => String(b.date).localeCompare(String(a.date)));
   return json({ q, results, sources: [{ source: 'fts', label: settings.site.owner, ok: true }, ...remote.status] });
 }
